@@ -1,12 +1,13 @@
 package cpu
 
-type Opcode struct {
-	val      OpcodeValue
-	prefixCB bool
-	mnemonic string
-	length   uint8
-	timing   int
-	flags    Flags
+type UnprefixedOpcode struct {
+	val          OpcodeValue
+	prefixCB     bool
+	mnemonic     string
+	length       uint8
+	cycles       int
+	cyclesIfNoop int
+	flags        Flags
 }
 
 type Flags struct {
@@ -21,5 +22,4 @@ const (
 	IsReset   FlagState = 3
 )
 
-type PrefixedOpcodeValue uint8
-type UnprefixedOpcodeValue uint8
+type OpcodeValue uint8
