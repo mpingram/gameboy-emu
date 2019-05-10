@@ -1,4 +1,4 @@
-Add opcode table
+Write CPU instruction interface
 
-* Opcode table (opcodes.go) is a generated file from a JSON document
-specifying the timings, lenghts, operands, etc of each opcode.
+* Begin implementing CPU instruction interface
+

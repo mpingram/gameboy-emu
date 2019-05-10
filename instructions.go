@@ -1,610 +1,331 @@
 package cpu
 
-type reg int
-type doubleReg int
-
-const (
-	A reg = 0
-
-	B reg = 1
-	C reg = 2
-	D reg = 3
-
-	E reg = 4
-	H reg = 5
-	L reg = 6
-
-	F reg = 7
-)
-
-const (
-	AF doubleReg = 10
-	BC doubleReg = 11
-	DE doubleReg = 12
-	HL doubleReg = 13
-)
-
-type addr uint16
-
-/*
-(mpingram): Opcode documentation from https://raw.githubusercontent.com/gb-archive/salvage/master/txt-files/gb-instructions.txt
-*/
-
-type Executor interface {
-	/*
-		ADC A,n        - Add n + Carry flag to A.
-
-			n = A,B,C,D,E,H,L,(HL),#
-
-			Flags affected:
-					Z - Set if result is zero.
-					N - Reset.
-					H - Set if carry from bit 3.
-					C - Set if carry from bit 7.
-	*/
-	adc(n reg)
-
-	/*
-		ADD A,n        - Add n to A.
-
-			n = A,B,C,D,E,H,L,(HL),#
-
-			Flags affected:
-					Z - Set if result is zero.
-					N - Reset.
-					H - Set if carry from bit 3.
-					C - Set if carry from bit 7.
-	*/
-	add(n reg)
-
-	/*
-		ADD HL,n       - Add n to HL.
-
-			n = BC,DE,HL
-
-			Flags affected:
-					Z - Not affected.
-					N - Reset.
-					H - Set if carry from bit 11.
-					C - Set if carry from bit 15.
-	*/
-	addHL(r reg)
-
-	/*
-		ADD SP,n       - Add n to Stack Pointer (SP).
-
-			n = one byte signed immediate value.
-
-			Flags affected:
-					Z - Reset.
-					N - Reset.
-					H - Set or reset according to operation.
-					C - Set or reset according to operation.
-	*/
-	addSP(n byte)
-
-	/*
-		AND n          - Logically AND n with A, result in A.
-
-			n = A,B,C,D,E,H,L,(HL),#
-
-			Flags affected:
-					Z - Set if result is zero.
-					N - Reset.
-					H - Set.
-					C - Reset.
-	*/
-	and(n reg)
-
-	/*
-		BIT b,r        - Test bit b in register r.
-
-			b = 0 - 7, r = A,B,C,D,E,H,L,(HL)
-
-			Flags affected:
-					Z - Set if bit b of register r is 0.
-					N - Reset.
-					H - Set.
-					C - Not affected.
-	*/
-	bit(b byte, r reg)
-
-	/*
-		CALL n         - Push address of next instruction onto
-								stack and then jump to address n.
-	*/
-	call(n addr)
-
-	/*
-		CALL cc,n      - Call address n if following condition
-								is true:
-
-			cc = NZ, Call if Z flag is reset.
-			cc = Z,  Call if Z flag is set.
-			cc = NC, Call if C flag is reset.
-			cc = C,  Call if C flag is set.
-	*/
-	callNZ(n addr)
-	callZ(n addr)
-	callNC(n addr)
-	callC(n addr)
-
-	/*
-		CCF            - Complement carry flag.
-
-			If C flag is set, then reset it.
-			If C flag is reset, then set it.
-
-
-			Flags affected:
-					Z - Not affected.
-					N - Reset.
-					H - Reset.
-					C - Complemented.
-	*/
-	ccf()
-
-	/*
-		CP n           - Compare A with n.
-
-			This is basically an A - n subtraction
-			instruction but the results are thrown away.
-
-			n = A,B,C,D,E,H,L,(HL),#
-
-			Flags affected:
-					Z - Set if result is zero. (Set if A = n.)
-					N - Set.
-					H - Set if no borrow from bit 4.
-					C - Set for no borrow. (Set if A < n.)
-	*/
-	cp(n reg)
-
-	/*
-		CPL            - Complement A register. (Flip all bits.)
-
-			Flags affected:
-					Z - Not affected.
-					N - Set.
-					H - Set.
-					C - Not affected.
-	*/
-	cpl()
-
-	/*
-		DAA            - Decimal adjust register A.
-
-			This instruction adjusts register A so that the
-			correct representation of Binary Coded Decimal
-			(BCD) is obtained.
-
-			Flags affected:
-					Z - Set if register A is zero.
-					N - Not affected.
-					H - Reset.
-					C - Set or reset according to operation.
-	*/
-	daa()
-
-	/*
-		DEC n          - Decrement register n.
-
-			n = A,B,C,D,E,H,L,(HL)
-
-			Flags affected:
-					Z - Set if reselt is zero.
-					N - Set.
-					H - Set if no borrow from bit 4.
-					C - Not affected.
-	*/
-	dec(n reg)
-
-	/*
-		DEC nn         - Decrement register nn.
-
-			nn = BC,DE,HL,SP
-
-			Flags affected:
-					None
-	*/
-	decNN(nn doubleReg)
-
-	/*
-		DI             - Disable interrupts.
-
-			Flags affected:
-					None.
-	*/
-	di()
-
-	/*
-		EI             - Enable interrupts.
-
-			This intruction enables interrupts but not immediately.
-			Interrupts are enabled after instruction after EI is
-			executed.
-
-			Flags affected:
-					None.
-	*/
-	ei()
-
-	/*
-		INC n          - Increment register n.
-
-			n = A,B,C,D,E,H,L,(HL)
-
-			Flags affected:
-					Z - Set if result is zero.
-					N - Reset.
-					H - Set if carry from bit 3.
-					C - Not affected.
-	*/
-	inc(n reg)
-
-	/*
-		INC nn         - Increment register nn.
-
-			nn = BC,DE,HL,SP
-
-			Flags affected:
-					None.
-	*/
-	incNN(nn doubleReg)
-
-	/*
-		JP n           - Jump to address n.
-
-			n = two byte immediate value. (LS byte first.)
-	*/
-	jp(n addr)
-
-	/*
-		JP cc,n        - Jump to address n if following condition
-								is true:
-
-			n = two byte immediate value. (LS byte first.)
-
-			cc = NZ, Jump if Z flag is reset.
-			cc = Z,  Jump if Z flag is set.
-			cc = NC, Jump if C flag is reset.
-			cc = C,  Jump if C flag is set.
-	*/
-	jpNZ(n addr)
-	jpZ(n addr)
-	jpNC(n addr)
-	jpC(n addr)
-
-	/*
-		JP (HL)        - Jump to address contained in HL.
-	*/
-	jpHL()
-
-	/*
-		JR n           - Add n to current address and jump to it.
-
-			n = one byte signed immediate value
-	*/
-	jr(n addr)
-
-	/*
-		JR cc,n        - If following condition is true then
-								add n to current address and jump to it:
-
-			n = one byte signed immediate value
-
-			cc = NZ, Jump if Z flag is reset.
-			cc = Z,  Jump if Z flag is set.
-			cc = NC, Jump if C flag is reset.
-			cc = C,  Jump if C flag is set.
-	*/
-	jrNZ(n addr)
-	jrZ(n addr)
-	jrNC(n addr)
-	jrC(n addr)
-
-	/*
-		HALT           - Power down CPU until an interrupt occurs.
-	*/
-	halt()
-
-	/*
-		LD A,n         - Put value n into A.
-
-			n = A,B,C,D,E,H,L,(BC),(DE),(HL),(nnnn),#
-	*/
-	ldA(n reg)
-
-	/*
-		LD n,A         - Put value A into n.
-
-			n = A,B,C,D,E,H,L,(BC),(DE),(HL),(nnnn)
-	*/
-	ldn()
-
-	/*
-		LD A,(C)       - Put value at address $FF00 + register C into A.
-	*/
-	ldC()
-
-	/*
-		LD A,(HL+)     - Same as LD A,(HLI).
-	*/
-
-	/*
-		LD A,(HL-)     - Same as LD A,(HLD).
-
-
-		LD A,(HLI)     - Put value at address HL into A. Increment HL.
-
-
-		LD A,(HLD)     - Put value at address HL into A. Decrement HL.
-
-
-		LD (C),A       - Put A into address $FF00 + register C.
-
-
-		LD (HL+),A     - Same as LD (HLI),A.
-
-
-		LD (HL-),A     - Same as LD (HLD),A.
-
-
-		LD (HLI),A     - Put A into memory address HL. Increment HL.
-
-
-		LD (HLD),A     - Put A into memory address HL. Decrement HL.
-
-
-		LD r1,r2       - Put value r2 into r1.
-
-			r1,r2 = A,B,C,D,E,H,L,(HL)
-
-
-		LD n,nn        - Put value nn into n.
-
-			n = BC,DE,HL,SP
-			nn = 16 bit immediate value
-
-
-		LD HL,(SP+n)   - Same as LDHL SP,n.
-
-
-		LD SP,HL       - Put HL into Stack Pointer (SP).
-
-
-		LD (n),SP      - Put Stack Pointer (SP) at address n.
-
-			n = two byte immediate address.
-
-
-		LDD A,(HL)     - Same as LD A,(HLD).
-
-
-		LDD (HL),A     - Same as LD (HLD),A.
-
-
-		LDH (n),A      - Put A into memory address $FF00+n.
-
-			n = one byte immediate value.
-
-
-		LDH A,(n)      - Put memory address $FF00+n into A.
-
-			n = one byte immediate value.
-
-
-		LDHL SP,n      - Put SP + n into HL.
-
-			n = one byte signed immediate value.
-
-			Flags affected:
-					Z - Reset.
-					N - Reset.
-					H - Set or reset according to operation.
-					C - Set or reset according to operation.
-
-
-		LDI A,(HL)     - Same as LD A,(HLI).
-
-
-		LDI (HL),A     - Same as LD (HLI),A.
-
-
-		NOP            - No operation.
-
-
-		OR n           - Logical OR n with register A, result in A.
-
-			n = A,B,C,D,E,H,L,(HL),#
-
-			Flags affected:
-					Z - Set if result is zero.
-					N - Reset.
-					H - Reset.
-					C - Reset.
-
-
-		POP nn         - Pop two bytes off stack into register pair nn.
-								Increment Stack Pointer (SP) twice.
-
-			nn = AF,BC,DE,HL
-
-
-		PUSH nn        - Push register pair nn onto stack.
-								Decrement Stack Pointer (SP) twice.
-
-			nn = AF,BC,DE,HL
-
-
-		RES b,r        - Reset bit b in register r.
-
-			b = 0 - 7, r = A,B,C,D,E,H,L,(HL)
-
-			Flags affected:
-					None.
-
-
-		RET            - Pop two bytes from stack & jump to that address.
-
-
-		RET cc         - Return if following condition is true:
-
-			cc = NZ, Return if Z flag is reset.
-			cc = Z,  Return if Z flag is set.
-			cc = NC, Return if C flag is reset.
-			cc = C,  Return if C flag is set.
-
-
-		RETI           - Pop two bytes from stack & jump to that address
-								then enable interrupts.
-
-		RL n           - Rotate n left through Carry flag.
-
-			n = A,B,C,D,E,H,L,(HL)
-
-			Flags affected:
-					Z - Set if result is zero.
-					N - Reset.
-					H - Reset.
-					C - Contains old bit 7 data.
-
-
-		RLC n          - Rotate n left. Old bit 7 to Carry flag.
-
-			n = A,B,C,D,E,H,L,(HL)
-
-			Flags affected:
-					Z - Set if result is zero.
-					N - Reset.
-					H - Reset.
-					C - Contains old bit 7 data.
-
-
-		RR n           - Rotate n right through Carry flag.
-
-			n = A,B,C,D,E,H,L,(HL)
-
-			Flags affected:
-					Z - Set if result is zero.
-					N - Reset.
-					H - Reset.
-					C - Contains old bit 0 data.
-
-
-		RRC n          - Rotate n right. Old bit 0 to Carry flag.
-
-			n = A,B,C,D,E,H,L,(HL)
-
-			Flags affected:
-					Z - Set if result is zero.
-					N - Reset.
-					H - Reset.
-					C - Contains old bit 0 data.
-
-
-		RST n          - Push present address onto stack.
-								Jump to address $0000 + n.
-
-			n = $00,$08,$10,$18,$20,$28,$30,$38
-
-
-		SBC A,n        - Subtract n + Carry flag from A.
-
-			n = A,B,C,D,E,H,L,(HL),#
-
-			Flags affected:
-					Z - Set if result is zero.
-					N - Set.
-					H - Set if no borrow from bit 4.
-					C - Set if no borrow.
-
-
-		SCF            - Set Carry flag.
-
-			Flags affected:
-					Z - Not affected.
-					N - Reset.
-					H - Reset.
-					C - Set.
-
-
-		SET b,r        - Set bit b in register r.
-
-			b = 0 - 7, r = A,B,C,D,E,H,L,(HL)
-
-			Flags affected:
-					None.
-
-
-		SLA n          - Shift n left into Carry. LSB of n set to 0.
-
-			n = A,B,C,D,E,H,L,(HL)
-
-			Flags affected:
-					Z - Set if result is zero.
-					N - Reset.
-					H - Reset.
-					C - Contains old bit 7 data.
-
-
-		SRA n          - Shift n right into Carry. MSB doesn't change.
-
-			n = A,B,C,D,E,H,L,(HL)
-
-			Flags affected:
-					Z - Set if result is zero.
-					N - Reset.
-					H - Reset.
-					C - Contains old bit 0 data.
-
-
-		SRL n          - Shift n right into Carry. MSB set to 0.
-
-			n = A,B,C,D,E,H,L,(HL)
-
-			Flags affected:
-					Z - Set if result is zero.
-					N - Reset.
-					H - Reset.
-					C - Contains old bit 0 data.
-
-		STOP           - ???
-
-
-		SUB n          - Subtract n from A.
-
-			n = A,B,C,D,E,H,L,(HL),#
-
-			Flags affected:
-					Z - Set if result is zero.
-					N - Set.
-					H - Set if no borrow from bit 4.
-					C - Set if no borrow.
-
-
-		SWAP n         - Swap upper & lower bits of n.
-
-			n = A,B,C,D,E,H,L,(HL)
-
-			Flags affected:
-					Z - Set if result is zero.
-					N - Reset.
-					H - Reset.
-					C - Reset.
-
-
-		XOR n          - Logical exclusive OR n with
-								register A, result in A.
-
-			n = A,B,C,D,E,H,L,(HL),#
-
-			Flags affected:
-					Z - Set if result is zero.
-					N - Reset.
-					H - Reset.
-					C - Reset.
-
-	*/
-
+/**
+ * Reference:
+ * http://gbdev.gg8.se/wiki/articles/CPU_Instruction_Set
+ */
+
+/**
+ * CPU Control commands
+ * ------+--------------+------+------+-----
+ * mnem. |byte signature|cycles| znhc | desc
+ * ------+--------------+------+------+-----
+ * ccf            3F           4 -00c cy=cy xor 1
+ * scf            37           4 -001 cy=1
+ * nop            00           4 ---- no operation
+ * halt           76         N*4 ---- halt until interrupt occurs (low power)
+ * stop           10 00        ? ---- low power standby mode (VERY low power)
+ * di             F3           4 ---- disable interrupts, IME=0
+ * ei             FB           4 ---- enable interrupts, IME=1
+ */
+
+func (c *CPU) Ccf() {
+	// xor c
+	c.setFlagC(c.getFlagC() ^ 1)
+	// zero n
+	c.setFlagN(0)
+	// zero h
+	c.setFlagH(0)
 }
+
+func (c *CPU) Scf() {
+	// set c to 1
+	c.setFlagC(1)
+	// zero n
+	c.setFlagN(0)
+	// zero h
+	c.setFlagH(0)
+}
+
+func (c *CPU) Nop() {
+	// nothin
+}
+
+func (c *CPU) Halt() {
+	c.halted = true
+}
+
+func (c *CPU) Stop() {
+	c.stopped = true
+}
+
+func (c *CPU) Di() {
+	// Set IME = 0
+	interrupts, err := c.mem.rb(ADDR_INTERRUPTS)
+	if err != nil {
+		panic(err)
+	}
+	interrupts ^= IME_BIT
+	err = c.mem.wb(ADDR_INTERRUPTS, interrupts)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func (c *CPU) Ei() {
+	// Set IME = 0
+	interrupts, err := c.mem.rb(ADDR_INTERRUPTS)
+	if err != nil {
+		panic(err)
+	}
+	interrupts |= IME_BIT
+	err = c.mem.wb(ADDR_INTERRUPTS, interrupts)
+	if err != nil {
+		panic(err)
+	}
+}
+
+/**
+ * Jump commands
+ * ------------+--------+------+------+-----
+ * mnem.       | bytes  |cycles| znhc | desc
+ * ------------+--------+------+------+-----
+ * jp   nn        C3 nn nn    16 ---- jump to nn, PC=nn
+ * jp   HL        E9           4 ---- jump to HL, PC=HL
+ * jp   f,nn      xx nn nn 16;12 ---- conditional jump if nz,z,nc,c
+ * jr   PC+dd     18 dd       12 ---- relative jump to nn (PC=PC+/-7bit)
+ * jr   f,PC+dd   xx dd     12;8 ---- conditional relative jump if nz,z,nc,c
+ * call nn        CD nn nn    24 ---- call to nn, SP=SP-2, (SP)=PC, PC=nn
+ * call f,nn      xx nn nn 24;12 ---- conditional call if nz,z,nc,c
+ * ret            C9          16 ---- return, PC=(SP), SP=SP+2
+ * ret  f         xx        20;8 ---- conditional return if nz,z,nc,c
+ * reti           D9          16 ---- return and enable interrupts (IME=1)
+ * rst  n         xx          16 ---- call to 00,08,10,18,20,28,30,38
+ */
+
+func (c *CPU) Jp_a16(a16 uint16) {
+	c.PC = a16
+}
+
+func (c *CPU) Jp_valHL() {
+	valHL, err := c.mem.rw(c.getHL())
+	if err != nil {
+		panic(err)
+	}
+	c.PC = valHL
+}
+
+func (c *CPU) JpNZ_a16(a16 uint16) {
+	// Jump if Z is 0
+	if c.getFlagZ() == 0 {
+		c.PC = a16
+	}
+}
+
+func (c *CPU) JpZ_a16(a16 uint16) {
+	if c.getFlagZ() == 1 {
+		c.PC = a16
+	}
+}
+
+func (c *CPU) JpNC_a16(a16 uint16) {
+	if c.getFlagC() == 0 {
+		c.PC = a16
+	}
+}
+
+func (c *CPU) JpC_a16(a16 uint16) {
+	if c.getFlagC() == 1 {
+		c.PC = a16
+	}
+}
+
+func (c *CPU) Jr_r8(r8 int8) {
+	if isNegative := r8 < 0; isNegative {
+		// if our signed byte r8 is negative,
+		// make it positive(multiply it by -1), convert it to a uint16,
+		// and subtract it from PC.
+		r8 *= -1
+		c.PC -= uint16(r8)
+	} else {
+		// our signed byte r8 is positive,
+		// so we can just convert it to a uint16 and add it.
+		c.PC += uint16(r8)
+	}
+}
+
+func (c *CPU) JrNZ_r8(r8 int8) {
+	if c.getFlagZ() == 0 {
+		c.Jr_r8(r8)
+	}
+}
+
+func (c *CPU) JrZ_r8(r8 int8) {
+	if c.getFlagZ() == 1 {
+		c.Jr_r8(r8)
+	}
+}
+
+func (c *CPU) JrNC_r8(r8 int8) {
+	if c.getFlagC() == 0 {
+		c.Jr_r8(r8)
+	}
+}
+
+func (c *CPU) JrC_r8(r8 int8) {
+	if c.getFlagC() == 1 {
+		c.Jr_r8(r8)
+	}
+}
+
+func (c *CPU) Call(a16 uint16) {
+	c.SP -= 2 // stack grows downward in memory
+	err := c.mem.ww(c.SP, c.PC)
+	if err != nil {
+		panic(err)
+	}
+	c.PC = a16
+}
+
+func (c *CPU) CallNZ(a16 uint16) {
+	// TODO in future will need to figure out a way
+	// to handle the timing differences if condition
+	// succeeds or fails. Return bool from instruction?
+	if c.getFlagZ() == 0 {
+		c.Call(a16)
+	}
+}
+
+func (c *CPU) CallZ(a16 uint16) {
+	if c.getFlagZ() == 1 {
+		c.Call(a16)
+	}
+}
+
+func (c *CPU) CallNC(a16 uint16) {
+	if c.getFlagC() == 0 {
+		c.Call(a16)
+	}
+}
+
+func (c *CPU) CallC(a16 uint16) {
+	if c.getFlagC() == 1 {
+		c.Call(a16)
+	}
+}
+
+/**
+ * 8bit load commands
+ * ------+--------------+------+------+-----
+ * mnem. |byte signature|cycles| znhc | desc
+ * ------+--------------+------+------+-----
+ * ld   r,r         xx         4 ---- r=r
+ * ld   r,n         xx nn      8 ---- r=n
+ * ld   r,(HL)      xx         8 ---- r=(HL)
+ * ld   (HL),r      7x         8 ---- (HL)=r
+ * ld   (HL),n      36 nn     12 ----
+ * ld   A,(BC)      0A         8 ----
+ * ld   A,(DE)      1A         8 ----
+ * ld   A,(nn)      FA        16 ----
+ * ld   (BC),A      02         8 ----
+ * ld   (DE),A      12         8 ----
+ * ld   (nn),A      EA        16 ----
+ * ld   A,(FF00+n)  F0 nn     12 ---- read from io-port n (memory FF00+n)
+ * ld   (FF00+n),A  E0 nn     12 ---- write to io-port n (memory FF00+n)
+ * ld   A,(FF00+C)  F2         8 ---- read from io-port C (memory FF00+C)
+ * ld   (FF00+C),A  E2         8 ---- write to io-port C (memory FF00+C)
+ * ldi  (HL),A      22         8 ---- (HL)=A, HL=HL+1
+ * ldi  A,(HL)      2A         8 ---- A=(HL), HL=HL+1
+ * ldd  (HL),A      32         8 ---- (HL)=A, HL=HL-1
+ * ldd  A,(HL)      3A         8 ---- A=(HL), HL=HL-1
+ */
+
+/**
+ * 16bit load commands
+ * ------+--------------+------+------+-----
+ * mnem. |byte signature|cycles| znhc | desc
+ * ------+--------------+------+------+-----
+ * ld   rr,nn       x1 nn nn  12 ---- rr=nn (rr may be BC,DE,HL or SP)
+ * ld   SP,HL       F9         8 ---- SP=HL
+ * push rr          x5        16 ---- SP=SP-2  (SP)=rr   (rr may be BC,DE,HL,AF)
+ * pop  rr          x1        12 (AF) rr=(SP)  SP=SP+2   (rr may be BC,DE,HL,AF)
+ */
+
+/**
+ * 8bit arithmetic
+ * ------+--------------+------+------+-----
+ * mnem. |byte signature|cycles| znhc | desc
+ * ------+--------------+------+------+-----
+ * add  A,r         8x         4 z0hc A=A+r
+ * add  A,n         C6 nn      8 z0hc A=A+n
+ * add  A,(HL)      86         8 z0hc A=A+(HL)
+ * adc  A,r         8x         4 z0hc A=A+r+cy
+ * adc  A,n         CE nn      8 z0hc A=A+n+cy
+ * adc  A,(HL)      8E         8 z0hc A=A+(HL)+cy
+ * sub  r           9x         4 z1hc A=A-r
+ * sub  n           D6 nn      8 z1hc A=A-n
+ * sub  (HL)        96         8 z1hc A=A-(HL)
+ * sbc  A,r         9x         4 z1hc A=A-r-cy
+ * sbc  A,n         DE nn      8 z1hc A=A-n-cy
+ * sbc  A,(HL)      9E         8 z1hc A=A-(HL)-cy
+ * and  r           Ax         4 z010 A=A & r
+ * and  n           E6 nn      8 z010 A=A & n
+ * and  (HL)        A6         8 z010 A=A & (HL)
+ * xor  r           Ax         4 z000
+ * xor  n           EE nn      8 z000
+ * xor  (HL)        AE         8 z000
+ * or   r           Bx         4 z000 A=A | r
+ * or   n           F6 nn      8 z000 A=A | n
+ * or   (HL)        B6         8 z000 A=A | (HL)
+ * cp   r           Bx         4 z1hc compare A-r
+ * cp   n           FE nn      8 z1hc compare A-n
+ * cp   (HL)        BE         8 z1hc compare A-(HL)
+ * inc  r           xx         4 z0h- r=r+1
+ * inc  (HL)        34        12 z0h- (HL)=(HL)+1
+ * dec  r           xx         4 z1h- r=r-1
+ * dec  (HL)        35        12 z1h- (HL)=(HL)-1
+ * daa              27         4 z-0x decimal adjust akku
+ * cpl              2F         4 -11- A = A xor FF
+ */
+
+/**
+ * 16bit arithmetic
+ * ------+--------------+------+------+-----
+ * mnem. |byte signature|cycles| znhc | desc
+ * ------+--------------+------+------+-----
+ * add  HL,rr     x9           8 -0hc HL = HL+rr     ;rr may be BC,DE,HL,SP
+ * inc  rr        x3           8 ---- rr = rr+1      ;rr may be BC,DE,HL,SP
+ * dec  rr        xB           8 ---- rr = rr-1      ;rr may be BC,DE,HL,SP
+ * add  SP,dd     E8          16 00hc SP = SP +/- dd ;dd is 8bit signed number
+ * ld   HL,SP+dd  F8          12 00hc HL = SP +/- dd ;dd is 8bit signed number
+ */
+
+/**
+ * Rotate / Shift commands
+ * ------+--------------+------+------+-----
+ * mnem. |byte signature|cycles| znhc | desc
+ * ------+--------------+------+------+-----
+ * rlca           07           4 000c rotate akku left
+ * rla            17           4 000c rotate akku left through carry
+ * rrca           0F           4 000c rotate akku right
+ * rra            1F           4 000c rotate akku right through carry
+ * rlc  r         CB 0x        8 z00c rotate left
+ * rlc  (HL)      CB 06       16 z00c rotate left
+ * rl   r         CB 1x        8 z00c rotate left through carry
+ * rl   (HL)      CB 16       16 z00c rotate left through carry
+ * rrc  r         CB 0x        8 z00c rotate right
+ * rrc  (HL)      CB 0E       16 z00c rotate right
+ * rr   r         CB 1x        8 z00c rotate right through carry
+ * rr   (HL)      CB 1E       16 z00c rotate right through carry
+ * sla  r         CB 2x        8 z00c shift left arithmetic (b0=0)
+ * sla  (HL)      CB 26       16 z00c shift left arithmetic (b0=0)
+ * swap r         CB 3x        8 z000 exchange low/hi-nibble
+ * swap (HL)      CB 36       16 z000 exchange low/hi-nibble
+ * sra  r         CB 2x        8 z00c shift right arithmetic (b7=b7)
+ * sra  (HL)      CB 2E       16 z00c shift right arithmetic (b7=b7)
+ * srl  r         CB 3x        8 z00c shift right logical (b7=0)
+ * srl  (HL)      CB 3E       16 z00c shift right logical (b7=0)
+ */
+
+/**
+ * Bit operations
+ * ------+--------------+------+------+-----
+ * mnem. |byte signature|cycles| znhc | desc
+ * ------+--------------+------+------+-----
+ * bit  n,r       CB xx        8 z01- test bit n
+ * bit  n,(HL)    CB xx       12 z01- test bit n
+ * set  n,r       CB xx        8 ---- set bit n
+ * set  n,(HL)    CB xx       16 ---- set bit n
+ * res  n,r       CB xx        8 ---- reset bit n
+ * res  n,(HL)    CB xx       16 ---- reset bit n
+ */

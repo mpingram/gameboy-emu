@@ -80,13 +80,13 @@ const (
 	{{- end }}
 )
 
-var unprefixedOpcodes = map[UnprefixedOpcodeValue]Opcode {
+var unprefixedOpcodes = map[OpcodeValue]Opcode {
 	{{- range .Unprefixed }}
 		{{ GetHexValue . }}: Opcode{ {{ GetHexValue . }}, false, "{{ GetMnemonic . }}", {{ GetLength . }}, {{ GetCycles . }}, {{ GetNoopCycles . }}, {{ GetFlags . }} },
 	{{- end }}
 }
 
-var prefixedOpcodes = map[PrefixedOpcodeValue]Opcode {
+var prefixedOpcodes = map[OpcodeValue]Opcode {
 	{{- range .Prefixed }}
 		{{ GetHexValue . }}: Opcode{ {{ GetHexValue . }}, true, "{{ GetMnemonic . }}", {{ GetLength . }}, {{ GetCycles . }}, {{ GetNoopCycles . }}, {{ GetFlags . }} },
 	{{- end }}
@@ -112,11 +112,14 @@ var prefixedOpcodes = map[PrefixedOpcodeValue]Opcode {
 	if err != nil {
 		panic(err)
 	}
-	formattedOutput, err := format.Source(output.Bytes())
+	formatted, err := format.Source(output.Bytes())
 	if err != nil {
 		panic(err)
 	}
-	ioutil.WriteFile(outputFilePath, formattedOutput, 0666)
+	err = ioutil.WriteFile(outputFilePath, formatted, 0666)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func getMnemonic(o Opcode) string {
@@ -133,11 +136,11 @@ func getMnemonic(o Opcode) string {
 
 // sanitizes string so that it can be a variable name.
 func toVariableName(s string) string {
-	s = strings.Replace(s, "(", "", -1)
+	s = strings.Replace(s, "(", "val_", -1)
 	s = strings.Replace(s, ")", "", -1)
 	s = strings.Replace(s, " ", "_", -1)
-	s = strings.Replace(s, "+", "plus", -1)
-	s = strings.Replace(s, "-", "minus", -1)
+	s = strings.Replace(s, "+", "inc", -1)
+	s = strings.Replace(s, "-", "dec", -1)
 	return s
 }
 

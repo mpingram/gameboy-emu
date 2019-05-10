@@ -1,10 +1,10 @@
 package cpu
 
-type UnprefixedOpcode struct {
+type Opcode struct {
 	val          OpcodeValue
 	prefixCB     bool
 	mnemonic     string
-	length       uint8
+	length       uint16
 	cycles       int
 	cyclesIfNoop int
 	flags        Flags
