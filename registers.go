@@ -58,9 +58,8 @@ func (r *Registers) setHL(val uint16) {
 func (r *Registers) getFlagC() byte {
 	if r.F&carryFlag != 0 {
 		return 1
-	} else {
-		return 0
 	}
+	return 0
 }
 
 func (r *Registers) setFlagC(bit byte) {

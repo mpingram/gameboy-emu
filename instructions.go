@@ -93,11 +93,11 @@ func (c *CPU) Ei() {
  * rst  n         xx          16 ---- call to 00,08,10,18,20,28,30,38
  */
 
-func (c *CPU) Jp_a16(a16 uint16) {
+func (c *CPU) Jp(a16 uint16) {
 	c.PC = a16
 }
 
-func (c *CPU) Jp_valHL() {
+func (c *CPU) Jp_HL() {
 	valHL, err := c.mem.rw(c.getHL())
 	if err != nil {
 		panic(err)
@@ -105,32 +105,32 @@ func (c *CPU) Jp_valHL() {
 	c.PC = valHL
 }
 
-func (c *CPU) JpNZ_a16(a16 uint16) {
+func (c *CPU) JpNZ(a16 uint16) {
 	// Jump if Z is 0
 	if c.getFlagZ() == 0 {
 		c.PC = a16
 	}
 }
 
-func (c *CPU) JpZ_a16(a16 uint16) {
+func (c *CPU) JpZ(a16 uint16) {
 	if c.getFlagZ() == 1 {
 		c.PC = a16
 	}
 }
 
-func (c *CPU) JpNC_a16(a16 uint16) {
+func (c *CPU) JpNC(a16 uint16) {
 	if c.getFlagC() == 0 {
 		c.PC = a16
 	}
 }
 
-func (c *CPU) JpC_a16(a16 uint16) {
+func (c *CPU) JpC(a16 uint16) {
 	if c.getFlagC() == 1 {
 		c.PC = a16
 	}
 }
 
-func (c *CPU) Jr_r8(r8 int8) {
+func (c *CPU) Jr(r8 int8) {
 	if isNegative := r8 < 0; isNegative {
 		// if our signed byte r8 is negative,
 		// make it positive(multiply it by -1), convert it to a uint16,
@@ -144,27 +144,27 @@ func (c *CPU) Jr_r8(r8 int8) {
 	}
 }
 
-func (c *CPU) JrNZ_r8(r8 int8) {
+func (c *CPU) JrNZ(r8 int8) {
 	if c.getFlagZ() == 0 {
-		c.Jr_r8(r8)
+		c.Jr(r8)
 	}
 }
 
-func (c *CPU) JrZ_r8(r8 int8) {
+func (c *CPU) JrZ(r8 int8) {
 	if c.getFlagZ() == 1 {
-		c.Jr_r8(r8)
+		c.Jr(r8)
 	}
 }
 
-func (c *CPU) JrNC_r8(r8 int8) {
+func (c *CPU) JrNC(r8 int8) {
 	if c.getFlagC() == 0 {
-		c.Jr_r8(r8)
+		c.Jr(r8)
 	}
 }
 
-func (c *CPU) JrC_r8(r8 int8) {
+func (c *CPU) JrC(r8 int8) {
 	if c.getFlagC() == 1 {
-		c.Jr_r8(r8)
+		c.Jr(r8)
 	}
 }
 

@@ -1,4 +1,2 @@
-Write CPU instruction interface
-
-* Begin implementing CPU instruction interface
+Write CPU Instruction dispatcher (execute.go)
 

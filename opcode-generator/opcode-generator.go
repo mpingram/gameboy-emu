@@ -136,7 +136,7 @@ func getMnemonic(o Opcode) string {
 
 // sanitizes string so that it can be a variable name.
 func toVariableName(s string) string {
-	s = strings.Replace(s, "(", "val_", -1)
+	s = strings.Replace(s, "(", "val", -1)
 	s = strings.Replace(s, ")", "", -1)
 	s = strings.Replace(s, " ", "_", -1)
 	s = strings.Replace(s, "+", "inc", -1)

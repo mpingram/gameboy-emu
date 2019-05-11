@@ -15,7 +15,6 @@ type memoryWriter interface {
 	ww(addr uint16, bb uint16) error
 }
 
-// Instruction is a test
 type Instruction struct {
 	opc  Opcode
 	data []byte

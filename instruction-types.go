@@ -14,7 +14,8 @@ const (
 	RegD Reg8 = 3
 	RegE Reg8 = 4
 	RegL Reg8 = 5
-	RegF Reg8 = 6
+	RegH Reg8 = 6
+	RegF Reg8 = 7
 )
 
 type Reg16 int
@@ -67,7 +68,7 @@ type Executor interface {
 	 * reti           D9          16 ---- return and enable interrupts (IME=1)
 	 * rst  n         xx          16 ---- call to 00,08,10,18,20,28,30,38
 	 */
-	JpHL()
+	Jp_HL()
 
 	Jp(a16 uint16)
 	JpNZ(a16 uint16)
@@ -75,11 +76,11 @@ type Executor interface {
 	JpNC(a16 uint16)
 	JpC(a16 uint16)
 
-	Jr(d16 uint16)
-	JrNZ(d16 uint16)
-	JrZ(d16 uint16)
-	JrNC(d16 uint16)
-	JrC(d16 uint16)
+	Jr(r8 int8)
+	JrNZ(r8 int8)
+	JrZ(r8 int8)
+	JrNC(r8 int8)
+	JrC(r8 int8)
 
 	Call(a16 uint16)
 	CallNZ(a16 uint16)
@@ -129,10 +130,10 @@ type Executor interface {
 
 	Ld_A_valBC()
 	Ld_A_valDE()
-	Ld_A_valA16(a16 byte)
+	Ld_A_valA16(a16 uint16)
 	Ld_valBC_A()
 	Ld_valDE_A()
-	Ld_valA16_A()
+	Ld_valA16_A(a16 uint16)
 
 	Ld_A_FFOO_plus_a8(a8 byte)
 	Ld_FF00_plus_a8_A(a8 byte)
