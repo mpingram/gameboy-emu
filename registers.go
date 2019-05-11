@@ -20,6 +20,57 @@ type Registers struct {
 	PC uint16 // program counter
 }
 
+// 8-bit getters/setters
+func (r *Registers) getA() byte {
+	return r.A
+}
+func (r *Registers) getB() byte {
+	return r.B
+}
+func (r *Registers) getC() byte {
+	return r.C
+}
+func (r *Registers) getD() byte {
+	return r.D
+}
+func (r *Registers) getE() byte {
+	return r.E
+}
+func (r *Registers) getF() byte {
+	return r.F
+}
+func (r *Registers) getH() byte {
+	return r.H
+}
+func (r *Registers) getL() byte {
+	return r.L
+}
+
+func (r *Registers) setA(b byte) {
+	r.A = b
+}
+func (r *Registers) setB(b byte) {
+	r.B = b
+}
+func (r *Registers) setC(b byte) {
+	r.C = b
+}
+func (r *Registers) setD(b byte) {
+	r.D = b
+}
+func (r *Registers) setE(b byte) {
+	r.E = b
+}
+func (r *Registers) setF(b byte) {
+	r.F = b
+}
+func (r *Registers) setH(b byte) {
+	r.H = b
+}
+func (r *Registers) setL(b byte) {
+	r.L = b
+}
+
 // Each 8-bit register can be combined with its complement
 // to function as one 16-bit register.
 // To emulate this, we use getters and setters that
@@ -37,21 +88,21 @@ func (r *Registers) getHL() uint16 {
 	return uint16(r.H)<<8 | uint16(r.L)
 }
 
-func (r *Registers) setAF(val uint16) {
-	r.A = uint8((val & 0xFF00) >> 8)
-	r.F = uint8(val & 0x00FF)
+func (r *Registers) setAF(bb uint16) {
+	r.A = uint8((bb & 0xFF00) >> 8)
+	r.F = uint8(bb & 0x00FF)
 }
-func (r *Registers) setBC(val uint16) {
-	r.B = uint8((val & 0xFF00) >> 8)
-	r.C = uint8(val & 0x00FF)
+func (r *Registers) setBC(bb uint16) {
+	r.B = uint8((bb & 0xFF00) >> 8)
+	r.C = uint8(bb & 0x00FF)
 }
-func (r *Registers) setDE(val uint16) {
-	r.D = uint8((val & 0xFF00) >> 8)
-	r.E = uint8(val & 0x00FF)
+func (r *Registers) setDE(bb uint16) {
+	r.D = uint8((bb & 0xFF00) >> 8)
+	r.E = uint8(bb & 0x00FF)
 }
-func (r *Registers) setHL(val uint16) {
-	r.H = uint8((val & 0xFF00) >> 8)
-	r.L = uint8(val & 0x00FF)
+func (r *Registers) setHL(bb uint16) {
+	r.H = uint8((bb & 0xFF00) >> 8)
+	r.L = uint8(bb & 0x00FF)
 }
 
 // Flag setters/getters for convenience.

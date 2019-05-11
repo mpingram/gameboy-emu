@@ -351,6 +351,4 @@ const (
 	RegBC Reg16 = 8
 	RegDE Reg16 = 9
 	RegHL Reg16 = 10
-
-	RegSP Reg16 = 11
 )

@@ -4,10 +4,8 @@ import (
 	"fmt"
 )
 
-// Execute dispatches a Sharp LR3502 instruction to an Executor,
-// which is an interface that implements the Sharp LR3502's
-// instruction set.
-func Execute(i Instruction, c Executor) error {
+// Execute executes a Sharp LR3502 instruction.
+func (c *CPU) Execute(i Instruction) error {
 
 	if !i.opc.prefixCB {
 		// unprefixed opcodes
