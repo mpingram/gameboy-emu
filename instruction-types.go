@@ -5,50 +5,51 @@ package cpu
  * http://gbdev.gg8.se/wiki/articles/CPU_Instruction_Set
  */
 
-type Reg8 int
-
-const (
-	RegA Reg8 = 0
-	RegB Reg8 = 1
-	RegC Reg8 = 2
-	RegD Reg8 = 3
-	RegE Reg8 = 4
-	RegL Reg8 = 5
-	RegH Reg8 = 6
-	RegF Reg8 = 7
-)
-
-type Reg16 int
-
-const (
-	RegAF Reg16 = 7
-	RegBC Reg16 = 8
-	RegDE Reg16 = 9
-	RegHL Reg16 = 10
-
-	RegSP Reg16 = 11
-)
-
 type Executor interface {
 	/**
 	 * CPU Control commands
-	 * ------+--------------+------+------+-----
-	 * mnem. |byte signature|cycles| znhc | desc
-	 * ------+--------------+------+------+-----
-	 * ccf            3F           4 -00c cy=cy xor 1
-	 * scf            37           4 -001 cy=1
-	 * nop            00           4 ---- no operation
-	 * halt           76         N*4 ---- halt until interrupt occurs (low power)
-	 * stop           10 00        ? ---- low power standby mode (VERY low power)
-	 * di             F3           4 ---- disable interrupts, IME=0
-	 * ei             FB           4 ---- enable interrupts, IME=1
 	 */
+
+	// Ccf -- Complement carry flag
+	// mnem. |byte signature|cycles| znhc | desc
+	// ------+--------------+------+------+-----
+	// ccf            3F           4 -00c cy=cy xor 1
 	Ccf()
+
+	// Scf -- Set carry flag
+	// mnem. |byte signature|cycles| znhc | desc
+	// ------+--------------+------+------+-----
+	// scf            37           4 -001 cy=1
 	Scf()
+
+	// Nop -- No operation
+	// mnem. |byte signature|cycles| znhc | desc
+	// ------+--------------+------+------+-----
+	// nop            00           4 ---- no operation
 	Nop()
+
+	// Halt -- halt CPU until an interrupt occurs
+	// mnem. |byte signature|cycles| znhc | desc
+	// ------+--------------+------+------+-----
+	// halt           76         N*4 ---- halt until interrupt occurs (low power)
 	Halt()
+
+	// Stop -- enter standby mode
+	// mnem. |byte signature|cycles| znhc | desc
+	// ------+--------------+------+------+-----
+	// stop           10 00        ? ---- low power standby mode (VERY low power)
 	Stop()
+
+	// Di -- Disable all interrupts
+	// mnem. |byte signature|cycles| znhc | desc
+	// ------+--------------+------+------+-----
+	// di             F3           4 ---- disable interrupts, IME=0
 	Di()
+
+	// Ei -- Enable all interrupts
+	// mnem. |byte signature|cycles| znhc | desc
+	// ------+--------------+------+------+-----
+	// di             F3           4 ---- disable interrupts, IME=0
 	Ei()
 
 	/**
@@ -68,6 +69,7 @@ type Executor interface {
 	 * reti           D9          16 ---- return and enable interrupts (IME=1)
 	 * rst  n         xx          16 ---- call to 00,08,10,18,20,28,30,38
 	 */
+
 	Jp_HL()
 
 	Jp(a16 uint16)
@@ -328,3 +330,27 @@ type Executor interface {
 	Res_n_r(n uint8, r Reg8)
 	Res_n_valHL(n uint8)
 }
+
+type Reg8 int
+
+const (
+	RegA Reg8 = 0
+	RegB Reg8 = 1
+	RegC Reg8 = 2
+	RegD Reg8 = 3
+	RegE Reg8 = 4
+	RegL Reg8 = 5
+	RegH Reg8 = 6
+	RegF Reg8 = 7
+)
+
+type Reg16 int
+
+const (
+	RegAF Reg16 = 7
+	RegBC Reg16 = 8
+	RegDE Reg16 = 9
+	RegHL Reg16 = 10
+
+	RegSP Reg16 = 11
+)

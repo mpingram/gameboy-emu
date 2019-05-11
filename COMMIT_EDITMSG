@@ -1,2 +1,1 @@
-Write CPU Instruction dispatcher (execute.go)
-
+Document some instruction methods on Executor
