@@ -14,6 +14,15 @@ func (c *CPU) Execute(i Instruction) error {
 			c.Nop()
 		case LD_BC_d16:
 			c.Ld_rr_d16(RegBC, d16(i.data))
+		case LD_valBC_A:
+			c.Ld_valBC_A()
+		case INC_BC:
+			c.Inc_rr(RegBC)
+
+		case LD_vala16_SP: // FIXME inverted arguements??
+			// FIXME not sure about this one
+			c.Ld_SP_d16(d16(i.data))
+
 		case STOP_0:
 			c.Halt()
 		case LD_DE_d16:
@@ -46,8 +55,7 @@ func (c *CPU) Execute(i Instruction) error {
 			c.Ld_r_d8(RegE, d8(i.data))
 		case RRA:
 			c.Rr_A()
-		case LD_valBC_A:
-			c.Ld_valBC_A()
+
 		case JR_NZ_r8:
 			c.JrNZ(r8(i.data))
 		case LD_HL_d16:
@@ -80,16 +88,15 @@ func (c *CPU) Execute(i Instruction) error {
 			c.Ld_r_d8(RegL, d8(i.data))
 		case CPL:
 			c.Cpl()
-		case INC_BC:
-			c.Inc_rr(RegBC)
+
 		case JR_NC_r8:
 			c.JrNC(r8(i.data))
 		case LD_SP_d16:
-			c.Ld_rr_d16(RegSP, d16(i.data))
+			c.Ld_SP_d16(d16(i.data))
 		case LD_valHLdec_A:
 			c.Ld_valHLdec_A()
 		case INC_SP:
-			c.Inc_rr(RegSP)
+			c.Inc_SP()
 		case INC_valHL:
 			c.Inc_valHL()
 		case DEC_valHL:
@@ -101,11 +108,11 @@ func (c *CPU) Execute(i Instruction) error {
 		case JR_C_r8:
 			c.JrC(r8(i.data))
 		case ADD_HL_SP:
-			c.Add_HL_rr(RegSP)
+			c.Add_HL_SP()
 		case LD_A_valHLdec:
 			c.Ld_A_valHLdec()
 		case DEC_SP:
-			c.Dec_rr(RegSP)
+			c.Dec_SP()
 		case INC_A:
 			c.Inc_r(RegA)
 		case DEC_A:
@@ -250,9 +257,7 @@ func (c *CPU) Execute(i Instruction) error {
 			c.Ld_r_valHL(RegA)
 		case LD_A_A:
 			c.Ld_r1_r2(RegA, RegA)
-		case LD_vala16_SP: // FIXME inverted arguements??
-			// FIXME not sure about this one
-			c.Ld_rr_d16(RegSP, d16(i.data))
+
 		case ADD_A_B:
 			c.Add_r(RegB)
 		case ADD_A_C:
@@ -476,7 +481,7 @@ func (c *CPU) Execute(i Instruction) error {
 		case RRCA:
 			c.Rrc_A()
 		case LDH_A_vala8: // FIXME bad mnemonic
-			c.Ld_A_FFOO_plus_a8(a8(i.data))
+			c.Ld_A_FF00_plus_a8(a8(i.data))
 		case POP_AF:
 			c.Pop_rr(RegAF)
 		case LD_A_valC: // FIXME bad mnemonic

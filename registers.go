@@ -4,23 +4,24 @@ import (
 	"fmt"
 )
 
-const negativeFlag = 0x10
-const halfCarryFlag = 0x20
-const carryFlag = 0x40
-const zeroFlag = 0x80
+const zeroFlag = 0x80      // bit 7 of F
+const negativeFlag = 0x40  // bit 6 of F
+const halfCarryFlag = 0x20 // bit 5 of F
+const carryFlag = 0x10     // bit 4 of
 
 // Registers represents the Sharp LR35902's registers.
 type Registers struct {
 	A                uint8 // accumulator
 	B, C, D, E, H, L uint8 // gen purpose
-	F                uint8 // flag register
+
+	F uint8 // flag register
 
 	SP uint16 // stack pointer
 
 	PC uint16 // program counter
 }
 
-// 8-bit getters/setters
+// 8-bit register getters/setters
 func (r *Registers) getA() byte {
 	return r.A
 }
@@ -71,10 +72,10 @@ func (r *Registers) setL(b byte) {
 	r.L = b
 }
 
-// Each 8-bit register can be combined with its complement
-// to function as one 16-bit register.
-// To emulate this, we use getters and setters that
-// change the state of the underlying registers.
+// 16bit register getters/setters
+//
+// NOTE The '16bit registers' are the 8bit registers
+// combined to function as one 16-bit register.
 func (r *Registers) getAF() uint16 {
 	return uint16(r.A)<<8 | uint16(r.F)
 }
@@ -105,75 +106,130 @@ func (r *Registers) setHL(bb uint16) {
 	r.L = uint8(bb & 0x00FF)
 }
 
-// Flag setters/getters for convenience.
-func (r *Registers) getFlagC() byte {
-	if r.F&carryFlag != 0 {
-		return 1
+type Reg8 int
+
+const (
+	RegA Reg8 = 0
+	RegB Reg8 = 1
+	RegC Reg8 = 2
+	RegD Reg8 = 3
+	RegE Reg8 = 4
+	RegL Reg8 = 5
+	RegH Reg8 = 6
+	RegF Reg8 = 7
+)
+
+type Reg16 int
+
+const (
+	RegAF Reg16 = 7
+	RegBC Reg16 = 8
+	RegDE Reg16 = 9
+	RegHL Reg16 = 10
+)
+
+// getReg8 returns a pair of getter/setter functions to a 8bit cpu register.
+func (c *CPU) getReg8(r Reg8) (func() byte, func(byte)) {
+	switch r {
+	case RegA:
+		return c.getA, c.setA
+	case RegB:
+		return c.getB, c.setB
+	case RegC:
+		return c.getC, c.setC
+	case RegD:
+		return c.getD, c.setD
+	case RegE:
+		return c.getE, c.setE
+	case RegF:
+		return c.getF, c.setF
+	case RegH:
+		return c.getH, c.setH
+	case RegL:
+		return c.getL, c.setL
+	default:
+		panic(fmt.Errorf("Incorrect register %v passed to getReg8", r))
 	}
-	return 0
 }
 
-func (r *Registers) setFlagC(bit byte) {
-	switch bit {
-	case 0:
-		r.F ^= carryFlag
-	case 1:
+// reg16 gets a pair of getter/setter functions to a 16bit register.
+func (c *CPU) getReg16(rr Reg16) (func() uint16, func(uint16)) {
+	switch rr {
+	case RegAF:
+		return c.getAF, c.setAF
+	case RegBC:
+		return c.getBC, c.setBC
+	case RegDE:
+		return c.getDE, c.setDE
+	case RegHL:
+		return c.getHL, c.setHL
+	default:
+		panic(fmt.Errorf("Incorrect register %v passed to getReg16", rr))
+	}
+}
+
+// Flags register getters/setters
+
+// getFlagC returns true if Carry flag is
+// set else false.
+func (r *Registers) getFlagC() bool {
+	return r.F&carryFlag != 0
+}
+
+// setFlagC sets or resets the carry flag.
+func (r *Registers) setFlagC(bit bool) {
+	if bit {
+		// 1110 | 0001 => 1111
+		// 1111 | 0001 => 1111
 		r.F |= carryFlag
-	default:
-		panic(fmt.Errorf("Attempted to set bit to value %v. Value must be 0 or 1", bit))
+	} else {
+		// 1010 & 1110 => 1010
+		// 1011 & 1110 => 1010
+		r.F = r.F &^ carryFlag
 	}
 }
 
-func (r *Registers) getFlagH() byte {
-	if r.F&halfCarryFlag != 0 {
-		return 1
-	} else {
-		return 0
-	}
+// getFlagH returns true if the half carry
+// flag is set else false.
+func (r *Registers) getFlagH() bool {
+	return r.F&halfCarryFlag != 0
 }
-func (r *Registers) setFlagH(bit byte) {
-	switch bit {
-	case 0:
-		r.F ^= halfCarryFlag
-	case 1:
+
+// setFlagH sets or resets the half carry flag.
+func (r *Registers) setFlagH(bit bool) {
+	if bit {
 		r.F |= halfCarryFlag
-	default:
-		panic(fmt.Errorf("Attempted to set bit to value %v. Value must be 0 or 1", bit))
+	} else {
+		r.F = r.F &^ halfCarryFlag
 	}
 }
 
-func (r *Registers) getFlagN() byte {
-	if r.F&negativeFlag != 0 {
-		return 1
-	} else {
-		return 0
-	}
+// getFlagN returns true if the negative
+// operation flag is set else false.
+func (r *Registers) getFlagN() bool {
+	return r.F&negativeFlag != 0
 }
-func (r *Registers) setFlagN(bit byte) {
-	switch bit {
-	case 0:
-		r.F ^= negativeFlag
-	case 1:
+
+// setFlagN sets or resets the negative operation flag.
+func (r *Registers) setFlagN(bit bool) {
+	if bit {
 		r.F |= negativeFlag
-	default:
-		panic(fmt.Errorf("Attempted to set bit to value %v. Value must be 0 or 1", bit))
+	} else {
+		r.F = r.F &^ negativeFlag
 	}
 }
 
-func (r *Registers) getFlagZ() byte {
-	if r.F&zeroFlag != 0 {
-		return 1
-	} else {
-		return 0
-	}
+// getFlagZ returns true if the zero flag
+// is set else false.
+func (r *Registers) getFlagZ() bool {
+	return r.F&zeroFlag != 0
 }
-func (r *Registers) setFlagZ(bit byte) {
-	switch bit {
-	case 0:
-		r.F ^= zeroFlag
-	case 1:
+
+// setFlagZ sets or resets the zero flag.
+func (r *Registers) setFlagZ(bit bool) {
+	if bit {
 		r.F |= zeroFlag
-	default:
-		panic(fmt.Errorf("Attempted to set bit to value %v. Value must be 0 or 1", bit))
+	} else {
+		r.F = r.F &^ zeroFlag
 	}
 }
