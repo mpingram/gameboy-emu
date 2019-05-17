@@ -72,7 +72,7 @@ func (c *CPU) Add_d8(d8 byte) {
 //
 // flags affected (znhc): z0hc
 func (c *CPU) Add_valHL() {
-	b, err := c.mem.rb(c.getHL())
+	b, err := c.mem.Rb(c.getHL())
 	if err != nil {
 		panic(err)
 	}
