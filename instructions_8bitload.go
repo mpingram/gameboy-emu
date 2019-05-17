@@ -58,7 +58,7 @@ func (c *CPU) Ld_A_valBC() {
 
 // Ld_A_valDE loads byte at address DE into A.
 func (c *CPU) Ld_A_valDE() {
-	b, err := c.mem.Rb(c.getBC())
+	b, err := c.mem.Rb(c.getDE())
 	if err != nil {
 		panic(err)
 	}

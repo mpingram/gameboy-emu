@@ -13,7 +13,7 @@ type MMU struct {
 }
 
 func (m *MMU) init() {
-	m.mem = make([]byte, 0xFFFF)
+	m.mem = make([]byte, 0x10000)
 	// initialize to randomized values
 	rand.Read(m.mem)
 }

@@ -1,5 +1,1 @@
-Change CPU and MMU initialization
-
-* Add cpu.New()
-* Separate mmu into own package
-* Initialize memory in mmu to random values
+Write unit tests for 8bit load instructions
