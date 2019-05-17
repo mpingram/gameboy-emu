@@ -35,8 +35,10 @@ func (m *MMU) ww(addr uint16, w uint16) error {
 	if len(m.mem) == 0 {
 		m.init()
 	}
-	m.mem[addr] = byte(w)
-	m.mem[addr+1] = byte(w >> 8)
+	hi := byte(w >> 8)
+	lo := byte(w)
+	m.mem[addr] = hi
+	m.mem[addr+1] = lo
 	return nil
 }
 

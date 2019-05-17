@@ -1,5 +1,9 @@
 package cpu
 
+import (
+	"fmt"
+)
+
 /**
  * II. Jump commands
  */
@@ -135,50 +139,58 @@ func (c *CPU) Ret() {
 	c.SP += 2
 }
 
-// RetNZ conditionally returns from subroutine if Zero flag == 1
+// RetNZ conditionally returns from subroutine if Zero flag == 0
 func (c *CPU) RetNZ() {
-	if c.getFlagZ() == true {
-		c.Ret()
-	}
-}
-
-// RetZ conditionally returns from subroutine if Zero flag == 0
-func (c *CPU) RetZ() {
 	if c.getFlagZ() == false {
 		c.Ret()
 	}
 }
 
-// RetNC conditionally returns from subroutine if Carry flag == 1
-func (c *CPU) RetNC() {
-	if c.getFlagC() == true {
+// RetZ conditionally returns from subroutine if Zero flag == 1
+func (c *CPU) RetZ() {
+	if c.getFlagZ() == true {
 		c.Ret()
 	}
 }
 
-// RetC conditionally returns from subroutine if Carry flag == 0
-func (c *CPU) RetC() {
+// RetNC conditionally returns from subroutine if Carry flag == 0
+func (c *CPU) RetNC() {
 	if c.getFlagC() == false {
 		c.Ret()
 	}
 }
 
-// Reti returns and enables all interrupts (IME bit=1)
+// RetC conditionally returns from subroutine if Carry flag == 1
+func (c *CPU) RetC() {
+	if c.getFlagC() == true {
+		c.Ret()
+	}
+}
+
+// Reti returns and (immediately) enables all interrupts (IME bit=1)
 func (c *CPU) Reti() {
-	c.Ei()
 	c.Ret()
+	c.ime = true
 }
 
 // Rst (Restart) calls to special memory addresses.
 // (Push PC onto stack and jump to $0000 + n, where
 // n in {0x00, 0x08, 0x10, 0x18, 0x20, 0x28, 0x30, 0x38}
-func (c *CPU) Rst(n byte) {
-	// Manually call to address -- c.Call() should
-	// restrict access to this rea of memory.
-	c.SP -= 2 // stack grows downward
-	err := c.mem.ww(c.SP, c.PC)
-	if err != nil {
-		panic(err)
+func (c *CPU) Rst(n RstTarget) {
+	switch n {
+	case 0x00, 0x08, 0x10, 0x18, 0x20, 0x28, 0x30, 0x38:
+		// Manually call to address -- c.Call() might
+		// restrict access to this rea of memory.
+		c.SP -= 2 // stack grows downward
+		err := c.mem.ww(c.SP, c.PC)
+		if err != nil {
+			panic(err)
+		}
+		c.PC = uint16(n)
+
+	default:
+		// panic if n is not 0x00, 0x08, 0x10, 0x18, 0x20, 0x28, 0x30, 0x38
+		panic(fmt.Sprintf("Invalid Rst target %02x", n))
 	}
-	c.PC = uint16(n)
+
 }
