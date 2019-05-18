@@ -15,9 +15,9 @@ func (c *CPU) Add_r(r Reg8) {
 	// FLAGS
 	// z
 	if sum == 0 {
-		c.setFlagZ(false)
-	} else {
 		c.setFlagZ(true)
+	} else {
+		c.setFlagZ(false)
 	}
 	// n
 	c.setFlagN(false)
@@ -46,9 +46,9 @@ func (c *CPU) Add_d8(d8 byte) {
 	// FLAGS
 	// z
 	if sum == 0 {
-		c.setFlagZ(false)
-	} else {
 		c.setFlagZ(true)
+	} else {
+		c.setFlagZ(false)
 	}
 	// n
 	c.setFlagN(false)
@@ -81,9 +81,9 @@ func (c *CPU) Add_valHL() {
 	// FLAGS
 	// z = 1 if sum is 0 else 0
 	if sum == 0 {
-		c.setFlagZ(false)
-	} else {
 		c.setFlagZ(true)
+	} else {
+		c.setFlagZ(false)
 	}
 	// n = 0
 	c.setFlagN(false)
@@ -103,6 +103,9 @@ func (c *CPU) Add_valHL() {
 	c.A = sum
 }
 
+// Adc_r sets A = A + r + cy
+//
+// flags affected (znhc): z0hc
 func (c *CPU) Adc_r(r Reg8) {
 	notImpl()
 }
