@@ -107,7 +107,17 @@ func (c *CPU) Add_valHL() {
 //
 // flags affected (znhc): z0hc
 func (c *CPU) Adc_r(r Reg8) {
-	notImpl()
+
+	// flags
+	// Z
+	if c.A == 0 {
+		c.setFlagZ(true)
+	} else {
+		c.setFlagZ(false)
+	}
+	// N
+	c.setFlagN(false)
+
 }
 
 func (c *CPU) Adc_d8(d8 byte) {
@@ -194,10 +204,6 @@ func (c *CPU) Inc_r(r Reg8) {
 	notImpl()
 }
 
-func (c *CPU) Inc_d8(d8 byte) {
-	notImpl()
-}
-
 func (c *CPU) Inc_valHL() {
 	notImpl()
 }
@@ -206,16 +212,60 @@ func (c *CPU) Dec_r(r Reg8) {
 	notImpl()
 }
 
-func (c *CPU) Dec_d8(d8 byte) {
-	notImpl()
-}
-
 func (c *CPU) Dec_valHL() {
 	notImpl()
 }
 
 func (c *CPU) Daa() {
-	notImpl()
+	/**
+	* From https://www.reddit.com/r/EmuDev/comments/4ycoix/a_guide_to_the_gameboys_halfcarry_flag/
+	*
+	* --------------
+	* u = 0;
+	* if (FH || (!FN && (RA & 0xf) > 9)) { // If half carry, or if last op was addition and lower nyb of A is not oob (ie, less than 9)
+	*   u = 6;
+	* }
+	* if (FC || (!FN && RA > 0x99)) {
+	*   u |= 0x60;
+	*   FC = 1;
+	* }
+	* RA += FN ? -u : u;
+	* FZ_EQ0(RA);
+	* FH = 0;
+	* -----------------
+	*
+	* FZ, FN, FH, FC = flags
+	* RA = A
+	 */
+
+	// If last op had half carry,
+	// or if last op was addition and lower nyb of A needs to be adjusted (ie, is greater than 9)
+	var u byte
+	if c.getFlagH() || (!c.getFlagN() && (c.A&0x0F) > 0x09) {
+		u = 0x06
+	}
+	// If last op had carry,
+	// or if upper nyb of A needs to be adjusted (ie, is greater than 99)
+	if c.getFlagC() || (!c.getFlagN() && c.A > 0x99) {
+		u |= 0x60
+		c.setFlagC(true)
+	}
+	// Adjust A by subtracting u if last operation was a subtraction,
+	// else adjust A by adding u
+	if c.getFlagN() {
+		c.A -= u
+	} else {
+		c.A += u
+	}
+
+	// Set zero flag if A is 0
+	if c.A == 0 {
+		c.setFlagZ(true)
+	} else {
+		c.setFlagZ(false)
+	}
+	// Set half carry to 0
+	c.setFlagH(false)
 }
 
 func (c *CPU) Cpl() {
