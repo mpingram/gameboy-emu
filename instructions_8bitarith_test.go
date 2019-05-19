@@ -4,25 +4,6 @@ import (
 	"testing"
 )
 
-type flags struct {
-	z, n, h, c byte
-}
-
-func checkFlags(cpu *CPU, f flags, t *testing.T) {
-	if f.z != (cpu.F&0x80)>>7 {
-		t.Errorf("Got flags %04b, wanted Z to be %v", cpu.F>>4, f.z)
-	}
-	if f.n != (cpu.F&0x40)>>6 {
-		t.Errorf("Got flags %04b, wanted N to be %v", cpu.F>>4, f.n)
-	}
-	if f.h != (cpu.F&0x20)>>5 {
-		t.Errorf("Got flags %04b, wanted H to be %v", cpu.F>>4, f.h)
-	}
-	if f.c != (cpu.F&0x10)>>4 {
-		t.Errorf("Got flags %04b, wanted C to be %v", cpu.F>>4, f.c)
-	}
-}
-
 func TestCPU_Add_r(t *testing.T) {
 	type args struct {
 		r Reg8
@@ -144,13 +125,15 @@ func TestCPU_Adc_r(t *testing.T) {
 		{"A+=B, A=0x01, B=0x02, carry=1", Registers{A: 0x01, B: 0x02, F: 0x10}, args{r: RegB}, flags{0, 0, 0, 0}},
 		{"A+=B, A=0x00, B=0x00, carry=0", Registers{A: 0x00, B: 0x00, F: 0x00}, args{r: RegB}, flags{1, 0, 0, 0}},
 		{"A+=B, A=0x0F, B=0x01, carry=1", Registers{A: 0x0F, B: 0x01, F: 0x10}, args{r: RegB}, flags{0, 0, 1, 0}},
-		{"A+=B, A=0x00, B=0xFF, carry=1", Registers{A: 0x01, B: 0xFF, F: 0x10}, args{r: RegB}, flags{1, 0, 1, 1}},
-		{"A+=B, A=0xF0, B=0x0F, carry=1", Registers{A: 0xF0, B: 0x10, F: 0x10}, args{r: RegB}, flags{1, 0, 0, 1}},
+		{"A+=B, A=0x00, B=0xFF, carry=1", Registers{A: 0x00, B: 0xFF, F: 0x10}, args{r: RegB}, flags{1, 0, 1, 1}},
+		{"A+=B, A=0xF0, B=0x0F, carry=1", Registers{A: 0xF0, B: 0x0F, F: 0x10}, args{r: RegB}, flags{1, 0, 1, 1}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := New()
 			c.Registers = tt.regs
+
+			prevCarry := c.F&0x10 != 0
 
 			c.Adc_r(tt.args.r)
 
@@ -158,7 +141,7 @@ func TestCPU_Adc_r(t *testing.T) {
 			getr, _ := c.getReg8(tt.args.r)
 			expected := tt.regs.A + getr()
 			// if carry, add 1
-			if (c.F & 0x10) != 0 {
+			if prevCarry {
 				expected++
 			}
 			if c.A != expected {
@@ -184,20 +167,20 @@ func TestCPU_Adc_d8(t *testing.T) {
 		{"A+=d8, A=0x01, d8=0x02, carry=1", Registers{A: 0x01, F: 0x10}, args{d8: 0x02}, flags{0, 0, 0, 0}},
 		{"A+=d8, A=0x00, d8=0x00, carry=0", Registers{A: 0x00, F: 0x00}, args{d8: 0x00}, flags{1, 0, 0, 0}},
 		{"A+=d8, A=0x0F, d8=0x01, carry=1", Registers{A: 0x0F, F: 0x10}, args{d8: 0x01}, flags{0, 0, 1, 0}},
-		{"A+=d8, A=0x00, d8=0xFF, carry=1", Registers{A: 0x01, F: 0x10}, args{d8: 0xFF}, flags{1, 0, 1, 1}},
-		{"A+=d8, A=0xF0, d8=0x0F, carry=1", Registers{A: 0xF0, F: 0x10}, args{d8: 0x0F}, flags{1, 0, 0, 1}},
+		{"A+=d8, A=0x00, d8=0xFF, carry=1", Registers{A: 0x00, F: 0x10}, args{d8: 0xFF}, flags{1, 0, 1, 1}},
+		{"A+=d8, A=0xF0, d8=0x0F, carry=1", Registers{A: 0xF0, F: 0x10}, args{d8: 0x0F}, flags{1, 0, 1, 1}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := New()
 			c.Registers = tt.regs
 
+			carry := c.F&0x10 != 0
 			c.Adc_d8(tt.args.d8)
 
 			// Expect A=A+r
 			expected := tt.regs.A + tt.args.d8
-			// if carry, add 1
-			if (c.F & 0x10) != 0 {
+			if carry {
 				expected++
 			}
 			if c.A != expected {
@@ -220,8 +203,8 @@ func TestCPU_Adc_valHL(t *testing.T) {
 		{"A+=(HL), A=0x01, d8=0x02, carry=1", Registers{A: 0x01, F: 0x10}, 0x02, flags{0, 0, 0, 0}},
 		{"A+=(HL), A=0x00, d8=0x00, carry=0", Registers{A: 0x00, F: 0x00}, 0x00, flags{1, 0, 0, 0}},
 		{"A+=(HL), A=0x0F, d8=0x01, carry=1", Registers{A: 0x0F, F: 0x10}, 0x01, flags{0, 0, 1, 0}},
-		{"A+=(HL), A=0x00, d8=0xFF, carry=1", Registers{A: 0x01, F: 0x10}, 0xFF, flags{1, 0, 1, 1}},
-		{"A+=(HL), A=0xF0, d8=0x0F, carry=1", Registers{A: 0xF0, F: 0x10}, 0x0F, flags{1, 0, 0, 1}},
+		{"A+=(HL), A=0x00, d8=0xFF, carry=1", Registers{A: 0x00, F: 0x10}, 0xFF, flags{1, 0, 1, 1}},
+		{"A+=(HL), A=0xF0, d8=0x0F, carry=1", Registers{A: 0xF0, F: 0x10}, 0x0F, flags{1, 0, 1, 1}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -232,13 +215,14 @@ func TestCPU_Adc_valHL(t *testing.T) {
 			if err != nil {
 				t.Error(err)
 			}
+			carry := c.F&0x10 != 0
 
 			c.Adc_valHL()
 
 			// Expect A=A+r
 			expected := tt.regs.A + tt.valHL
 			// if carry, add 1
-			if (c.F & 0x10) != 0 {
+			if carry {
 				expected++
 			}
 			if c.A != expected {
@@ -261,7 +245,7 @@ func TestCPU_Sub_r(t *testing.T) {
 		args  args
 		flags flags
 	}{
-		{"A-=B, A=0x01, B=0x02", Registers{A: 0x01, B: 0x02}, args{r: RegB}, flags{0, 1, 0, 1}},
+		{"A-=B, A=0x01, B=0x02", Registers{A: 0x01, B: 0x02}, args{r: RegB}, flags{0, 1, 1, 1}},
 		{"A-=B, A=0x00, B=0x00", Registers{A: 0x00, B: 0x00}, args{r: RegB}, flags{1, 1, 0, 0}},
 		{"A-=B, A=0x10, B=0x01", Registers{A: 0x10, B: 0x01}, args{r: RegB}, flags{0, 1, 1, 0}},
 		{"A-=B, A=0x01, B=0xFF", Registers{A: 0x01, B: 0xFF}, args{r: RegB}, flags{0, 1, 1, 1}},
@@ -297,7 +281,7 @@ func TestCPU_Sub_d8(t *testing.T) {
 		args  args
 		flags flags
 	}{
-		{"A-=d8, A=0x01, d8=0x02", Registers{A: 0x01}, args{d8: 0x02}, flags{0, 1, 0, 1}},
+		{"A-=d8, A=0x01, d8=0x02", Registers{A: 0x01}, args{d8: 0x02}, flags{0, 1, 1, 1}},
 		{"A-=d8, A=0x00, d8=0x00", Registers{A: 0x00}, args{d8: 0x00}, flags{1, 1, 0, 0}},
 		{"A-=d8, A=0x10, d8=0x01", Registers{A: 0x10}, args{d8: 0x01}, flags{0, 1, 1, 0}},
 		{"A-=d8, A=0x01, d8=0xFF", Registers{A: 0x01}, args{d8: 0xFF}, flags{0, 1, 1, 1}},
@@ -329,7 +313,7 @@ func TestCPU_Sub_valHL(t *testing.T) {
 		valHL byte
 		flags flags
 	}{
-		{"A-=(HL), A=0x01, (HL)=0x02", Registers{A: 0x01}, 0x02, flags{0, 1, 0, 1}},
+		{"A-=(HL), A=0x01, (HL)=0x02", Registers{A: 0x01}, 0x02, flags{0, 1, 1, 1}},
 		{"A-=(HL), A=0x00, (HL)=0x00", Registers{A: 0x00}, 0x00, flags{1, 1, 0, 0}},
 		{"A-=(HL), A=0x10, (HL)=0x01", Registers{A: 0x10}, 0x01, flags{0, 1, 1, 0}},
 		{"A-=(HL), A=0x01, (HL)=0xFF", Registers{A: 0x01}, 0xFF, flags{0, 1, 1, 1}},
@@ -369,16 +353,17 @@ func TestCPU_Sbc_r(t *testing.T) {
 		args  args
 		flags flags
 	}{
-		{"A-=B, A=0x01, B=0x02, carry=0", Registers{A: 0x01, B: 0x02, F: 0x00}, args{r: RegB}, flags{0, 1, 0, 1}},
+		{"A-=B, A=0x01, B=0x02, carry=0", Registers{A: 0x01, B: 0x02, F: 0x00}, args{r: RegB}, flags{0, 1, 1, 1}},
 		{"A-=B, A=0x00, B=0x00, carry=1", Registers{A: 0x00, B: 0x00, F: 0x10}, args{r: RegB}, flags{0, 1, 1, 1}},
 		{"A-=B, A=0x10, B=0x01, carry=0", Registers{A: 0x10, B: 0x01, F: 0x00}, args{r: RegB}, flags{0, 1, 1, 0}},
-		{"A-=B, A=0x01, B=0xFF, carry=1", Registers{A: 0x01, B: 0xFF, F: 0x10}, args{r: RegB}, flags{1, 1, 1, 1}},
-		{"A-=B, A=0xF0, B=0x0F, carry=1", Registers{A: 0xF0, B: 0x0F, F: 0x10}, args{r: RegB}, flags{0, 1, 0, 0}},
+		{"A-=B, A=0x00, B=0xFF, carry=1", Registers{A: 0x00, B: 0xFF, F: 0x10}, args{r: RegB}, flags{1, 1, 1, 1}},
+		{"A-=B, A=0xF0, B=0x0F, carry=1", Registers{A: 0xF0, B: 0x0F, F: 0x10}, args{r: RegB}, flags{0, 1, 1, 0}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := New()
 			c.Registers = tt.regs
+			carry := c.F&0x10 != 0
 
 			c.Sbc_r(tt.args.r)
 
@@ -386,7 +371,7 @@ func TestCPU_Sbc_r(t *testing.T) {
 			getr, _ := c.getReg8(tt.args.r)
 			expected := tt.regs.A - getr()
 			// if carry, subtract one more from expected
-			if c.F&0x10 != 0 {
+			if carry {
 				expected--
 			}
 			if c.A != expected {
@@ -409,22 +394,23 @@ func TestCPU_Sbc_d8(t *testing.T) {
 		args  args
 		flags flags
 	}{
-		{"A-=d8, A=0x01, d8=0x02, carry=0", Registers{A: 0x01}, args{d8: 0x02}, flags{0, 1, 0, 1}},
-		{"A-=d8, A=0x00, d8=0x00, carry=1", Registers{A: 0x00}, args{d8: 0x00}, flags{0, 1, 1, 1}},
-		{"A-=d8, A=0x10, d8=0x01, carry=0", Registers{A: 0x10}, args{d8: 0x01}, flags{0, 1, 1, 0}},
-		{"A-=d8, A=0x01, d8=0xFF, carry=1", Registers{A: 0x01}, args{d8: 0xFF}, flags{1, 1, 1, 1}},
-		{"A-=d8, A=0xF0, d8=0x0F, carry=1", Registers{A: 0xF0}, args{d8: 0x0F}, flags{0, 1, 0, 0}},
+		{"A-=d8, A=0x01, d8=0x02, carry=0", Registers{A: 0x01, F: 0x00}, args{d8: 0x02}, flags{0, 1, 1, 1}},
+		{"A-=d8, A=0x00, d8=0x00, carry=1", Registers{A: 0x00, F: 0x10}, args{d8: 0x00}, flags{0, 1, 1, 1}},
+		{"A-=d8, A=0x10, d8=0x01, carry=0", Registers{A: 0x10, F: 0x00}, args{d8: 0x01}, flags{0, 1, 1, 0}},
+		{"A-=d8, A=0x00, d8=0xFF, carry=1", Registers{A: 0x00, F: 0x10}, args{d8: 0xFF}, flags{1, 1, 1, 1}},
+		{"A-=d8, A=0xF0, d8=0x0F, carry=1", Registers{A: 0xF0, F: 0x10}, args{d8: 0x0F}, flags{0, 1, 1, 0}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := New()
 			c.Registers = tt.regs
+			carry := c.F&0x10 != 0
 
 			c.Sbc_d8(tt.args.d8)
 
 			// Expect A=A-d8-carry
 			expected := tt.regs.A - tt.args.d8
-			if c.F&0x10 != 0 {
+			if carry {
 				expected--
 			}
 			if c.A != expected {
@@ -444,11 +430,11 @@ func TestCPU_Sbc_valHL(t *testing.T) {
 		valHL byte
 		flags flags
 	}{
-		{"A-=(HL), A=0x01, (HL)=0x02, carry=0", Registers{A: 0x01}, 0x02, flags{0, 1, 0, 1}},
-		{"A-=(HL), A=0x00, (HL)=0x00, carry=1", Registers{A: 0x00}, 0x00, flags{0, 1, 1, 1}},
-		{"A-=(HL), A=0x10, (HL)=0x01, carry=0", Registers{A: 0x10}, 0x01, flags{0, 1, 1, 0}},
-		{"A-=(HL), A=0x01, (HL)=0xFF, carry=1", Registers{A: 0x01}, 0xFF, flags{1, 1, 1, 1}},
-		{"A-=(HL), A=0xF0, (HL)=0x0F, carry=1", Registers{A: 0xF0}, 0x0F, flags{0, 1, 0, 0}},
+		{"A-=(HL), A=0x01, (HL)=0x02, carry=0", Registers{A: 0x01, F: 0x00}, 0x02, flags{0, 1, 1, 1}},
+		{"A-=(HL), A=0x00, (HL)=0x00, carry=1", Registers{A: 0x00, F: 0x10}, 0x00, flags{0, 1, 1, 1}},
+		{"A-=(HL), A=0x10, (HL)=0x01, carry=0", Registers{A: 0x10, F: 0x00}, 0x01, flags{0, 1, 1, 0}},
+		{"A-=(HL), A=0x00, (HL)=0xFF, carry=1", Registers{A: 0x00, F: 0x10}, 0xFF, flags{1, 1, 1, 1}},
+		{"A-=(HL), A=0xF0, (HL)=0x0F, carry=1", Registers{A: 0xF0, F: 0x10}, 0x0F, flags{0, 1, 1, 0}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -459,12 +445,13 @@ func TestCPU_Sbc_valHL(t *testing.T) {
 			if err != nil {
 				t.Error(err)
 			}
+			carry := c.F&0x10 != 0
 
 			c.Sbc_valHL()
 
 			// Expect A=A-(HL)-carry
 			expected := tt.regs.A - tt.valHL
-			if c.F&0x10 != 0 {
+			if carry {
 				expected--
 			}
 			if c.A != expected {
@@ -605,12 +592,13 @@ func TestCPU_Xor_r(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			c := New()
 			c.Registers = tt.regs
+			get, _ := c.getReg8(tt.args.r)
+			valR := get()
 
 			c.Xor_r(tt.args.r)
 
 			// Expect A=A^r
-			getr, _ := c.getReg8(tt.args.r)
-			expected := tt.regs.A ^ getr()
+			expected := tt.regs.A ^ valR
 			if c.A != expected {
 				t.Errorf("Expected A to be %02x, got %02x", expected, c.A)
 			}
@@ -811,7 +799,7 @@ func TestCPU_Cp_r(t *testing.T) {
 		args  args
 		flags flags
 	}{
-		{"A=0x01, B=0x02", Registers{A: 0x01, B: 0x02}, args{r: RegB}, flags{0, 1, 0, 1}},
+		{"A=0x01, B=0x02", Registers{A: 0x01, B: 0x02}, args{r: RegB}, flags{0, 1, 1, 1}},
 		{"A=0x00, B=0x00", Registers{A: 0x00, B: 0x00}, args{r: RegB}, flags{1, 1, 0, 0}},
 		{"A=0x10, B=0x01", Registers{A: 0x10, B: 0x01}, args{r: RegB}, flags{0, 1, 1, 0}},
 		{"A=0x01, B=0xFF", Registers{A: 0x01, B: 0xFF}, args{r: RegB}, flags{0, 1, 1, 1}},
@@ -847,7 +835,7 @@ func TestCPU_Cp_d8(t *testing.T) {
 		args  args
 		flags flags
 	}{
-		{"A=0x01, d8=0x02", Registers{A: 0x01}, args{d8: 0x02}, flags{0, 1, 0, 1}},
+		{"A=0x01, d8=0x02", Registers{A: 0x01}, args{d8: 0x02}, flags{0, 1, 1, 1}},
 		{"A=0x00, d8=0x00", Registers{A: 0x00}, args{d8: 0x00}, flags{1, 1, 0, 0}},
 		{"A=0x10, d8=0x01", Registers{A: 0x10}, args{d8: 0x01}, flags{0, 1, 1, 0}},
 		{"A=0x01, d8=0xFF", Registers{A: 0x01}, args{d8: 0xFF}, flags{0, 1, 1, 1}},
@@ -879,7 +867,7 @@ func TestCPU_Cp_valHL(t *testing.T) {
 		valHL byte
 		flags flags
 	}{
-		{"A=0x01, (HL)=0x02", Registers{A: 0x01}, 0x02, flags{0, 1, 0, 1}},
+		{"A=0x01, (HL)=0x02", Registers{A: 0x01}, 0x02, flags{0, 1, 1, 1}},
 		{"A=0x00, (HL)=0x00", Registers{A: 0x00}, 0x00, flags{1, 1, 0, 0}},
 		{"A=0x10, (HL)=0x01", Registers{A: 0x10}, 0x01, flags{0, 1, 1, 0}},
 		{"A=0x01, (HL)=0xFF", Registers{A: 0x01}, 0xFF, flags{0, 1, 1, 1}},
@@ -919,10 +907,10 @@ func TestCPU_Inc_r(t *testing.T) {
 		args  args
 		flags flags
 	}{
-		{"A++, A=0x01", Registers{A: 0x01}, args{r: RegA}, flags{0, 0, 0, 0}},
-		{"B++, B=0x00", Registers{B: 0x00}, args{r: RegB}, flags{0, 0, 0, 0}},
-		{"C++, C=0x0F", Registers{C: 0x0F}, args{r: RegC}, flags{0, 0, 1, 0}},
-		{"D++, D=0xFF", Registers{D: 0xFF}, args{r: RegD}, flags{1, 0, 1, 1}},
+		{"A++, A=0x01", Registers{A: 0x01, F: 0x10}, args{r: RegA}, flags{0, 0, 0, 1}},
+		{"B++, B=0x00", Registers{B: 0x00, F: 0x00}, args{r: RegB}, flags{0, 0, 0, 0}},
+		{"C++, C=0x0F", Registers{C: 0x0F, F: 0x10}, args{r: RegC}, flags{0, 0, 1, 1}},
+		{"D++, D=0xFF", Registers{D: 0xFF, F: 0x00}, args{r: RegD}, flags{1, 0, 1, 0}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -952,15 +940,19 @@ func TestCPU_Inc_valHL(t *testing.T) {
 		valHL byte
 		flags flags
 	}{
-		{"(HL)++, (HL)=0x01", Registers{}, 0x01, flags{0, 0, 0, 0}},
-		{"(HL)++, (HL)=0x00", Registers{}, 0x00, flags{0, 0, 0, 0}},
-		{"(HL)++, (HL)=0x0F", Registers{}, 0x0F, flags{0, 0, 1, 0}},
-		{"(HL)++, (HL)=0xFF", Registers{}, 0xFF, flags{1, 0, 1, 1}},
+		{"(HL)++, (HL)=0x01", Registers{F: 0x00}, 0x01, flags{0, 0, 0, 0}},
+		{"(HL)++, (HL)=0x00", Registers{F: 0x10}, 0x00, flags{0, 0, 0, 1}},
+		{"(HL)++, (HL)=0x0F", Registers{F: 0x00}, 0x0F, flags{0, 0, 1, 0}},
+		{"(HL)++, (HL)=0xFF", Registers{F: 0x10}, 0xFF, flags{1, 0, 1, 1}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := New()
 			c.Registers = tt.regs
+			err := c.mem.Wb(c.getHL(), tt.valHL)
+			if err != nil {
+				t.Error(err)
+			}
 
 			c.Inc_valHL()
 
@@ -990,10 +982,10 @@ func TestCPU_Dec_r(t *testing.T) {
 		args  args
 		flags flags
 	}{
-		{"A--, A=0x01", Registers{A: 0x01}, args{r: RegA}, flags{1, 1, 0, 0}},
-		{"B--, B=0x00", Registers{B: 0x00}, args{r: RegB}, flags{0, 1, 1, 1}},
-		{"C--, C=0x10", Registers{C: 0x10}, args{r: RegC}, flags{0, 1, 1, 0}},
-		{"D--, D=0xFF", Registers{D: 0xFF}, args{r: RegD}, flags{0, 1, 0, 0}},
+		{"A--, A=0x01", Registers{A: 0x01, F: 0x00}, args{r: RegA}, flags{1, 1, 0, 0}},
+		{"B--, B=0x00", Registers{B: 0x00, F: 0x10}, args{r: RegB}, flags{0, 1, 1, 1}},
+		{"C--, C=0x10", Registers{C: 0x10, F: 0x00}, args{r: RegC}, flags{0, 1, 1, 0}},
+		{"D--, D=0xFF", Registers{D: 0xFF, F: 0x10}, args{r: RegD}, flags{0, 1, 0, 1}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1023,15 +1015,19 @@ func TestCPU_Dec_valHL(t *testing.T) {
 		valHL byte
 		flags flags
 	}{
-		{"(HL)--, (HL)=0x01", Registers{}, 0x01, flags{1, 1, 0, 0}},
-		{"(HL)--, (HL)=0x00", Registers{}, 0x00, flags{0, 1, 1, 1}},
-		{"(HL)--, (HL)=0x10", Registers{}, 0x10, flags{0, 1, 1, 0}},
-		{"(HL)--, (HL)=0xFF", Registers{}, 0xFF, flags{0, 1, 0, 0}},
+		{"(HL)--, (HL)=0x01", Registers{F: 0x00}, 0x01, flags{1, 1, 0, 0}},
+		{"(HL)--, (HL)=0x00", Registers{F: 0x10}, 0x00, flags{0, 1, 1, 1}},
+		{"(HL)--, (HL)=0x10", Registers{F: 0x00}, 0x10, flags{0, 1, 1, 0}},
+		{"(HL)--, (HL)=0xFF", Registers{F: 0x10}, 0xFF, flags{0, 1, 0, 1}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := New()
 			c.Registers = tt.regs
+			err := c.mem.Wb(c.getHL(), tt.valHL)
+			if err != nil {
+				t.Error(err)
+			}
 
 			c.Dec_valHL()
 
@@ -1120,5 +1116,24 @@ func TestCPU_Cpl(t *testing.T) {
 			// Expect flags to be set
 			checkFlags(c, tt.flags, t)
 		})
+	}
+}
+
+type flags struct {
+	z, n, h, c byte
+}
+
+func checkFlags(cpu *CPU, f flags, t *testing.T) {
+	if f.z != (cpu.F&0x80)>>7 {
+		t.Errorf("Got flags %04b, wanted Z to be %v", cpu.F>>4, f.z)
+	}
+	if f.n != (cpu.F&0x40)>>6 {
+		t.Errorf("Got flags %04b, wanted N to be %v", cpu.F>>4, f.n)
+	}
+	if f.h != (cpu.F&0x20)>>5 {
+		t.Errorf("Got flags %04b, wanted H to be %v", cpu.F>>4, f.h)
+	}
+	if f.c != (cpu.F&0x10)>>4 {
+		t.Errorf("Got flags %04b, wanted C to be %v", cpu.F>>4, f.c)
 	}
 }

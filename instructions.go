@@ -17,34 +17,58 @@ const (
 	RstTarget0x38 RstTarget = 0x38
 )
 
-func addHalfCarriesByte(a, b, carry byte) bool {
+func addHalfCarriesByte(a, b byte, carry bool) bool {
 	// add the lower nibbles of a,b,c, and check
 	// if the sum carries over to the higher nibble.
-	return ((a&0x0f)+(b&0x0f)+(carry))&0x10 == 0x10
-}
-
-func addOverflowsByte(a, b, carry byte) bool {
-	if uint16(a)+uint16(b)+uint16(carry) != uint16(a+b+carry) {
-		return true
+	if carry {
+		return ((a&0x0f)+(b&0x0f)+1)&0x10 == 0x10
 	}
-	return false
+	return ((a&0x0f)+(b&0x0f))&0x10 == 0x10
 }
 
-func subHalfCarriesByte(a, b, carry byte) bool {
+func addOverflowsByte(a, b byte, carry bool) bool {
+	if carry {
+		if uint16(a)+uint16(b)+1 != uint16(a+b+1) {
+			return true
+		}
+		return false
+	} else {
+		if uint16(a)+uint16(b) != uint16(a+b) {
+			return true
+		}
+		return false
+	}
+}
+
+func subHalfCarriesByte(a, b byte, carry bool) bool {
 	// if the lower nibble of a is less than
 	// the lower nibble of b, there will be a
 	// carry from bit 4, the first bit of the upper nibble.
-	if a&0x0f < (b&0x0f + carry) {
-		return true
+	if carry {
+		if a&0x0f < (b&0x0f + 1) {
+			return true
+		}
+		return false
+	} else {
+		if a&0x0f < b&0x0f {
+			return true
+		}
+		return false
 	}
-	return false
 }
 
-func subUnderflowsByte(a, b, carry byte) bool {
-	if uint16(a) < (uint16(b) - uint16(carry)) {
-		return true
+func subUnderflowsByte(a, b byte, carry bool) bool {
+	if carry {
+		if uint16(a) < (uint16(b) - 1) {
+			return true
+		}
+		return false
+	} else {
+		if uint16(a) < uint16(b) {
+			return true
+		}
+		return false
 	}
-	return false
 }
 
 func notImpl() {
