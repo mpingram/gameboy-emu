@@ -1,19 +1,8 @@
 package cpu
 
-type memoryReadWriter interface {
-	memoryReader
-	memoryWriter
-}
-
-type memoryReader interface {
-	rb(addr uint16) (byte, error)
-	rw(addr uint16) (uint16, error)
-}
-
-type memoryWriter interface {
-	wb(addr uint16, b byte) error
-	ww(addr uint16, bb uint16) error
-}
+import (
+	"github.com/mpingram/gameboy-emu/mmu"
+)
 
 type Instruction struct {
 	opc  Opcode
@@ -24,7 +13,7 @@ func (i *Instruction) String() string {
 	return i.opc.mnemonic
 }
 
-func Decode(addr uint16, mem memoryReader) (Instruction, error) {
+func Decode(addr uint16, mem mmu.MemoryReader) (Instruction, error) {
 
 	// FIXME: EDGE CASE: 'HALT' opcode may be 1 or 2 bytes long. Officially,
 	// it's supposed to be 0x01 0x00 (which looks like HALT, NOP), so some
@@ -36,7 +25,7 @@ func Decode(addr uint16, mem memoryReader) (Instruction, error) {
 	// =======================
 	// Get the first byte of the opcode and look it up in our opcode table.
 	// =======================
-	firstByte, err := mem.rb(addr)
+	firstByte, err := mem.Rb(addr)
 	if err != nil {
 		return Instruction{}, err
 	}
@@ -46,7 +35,7 @@ func Decode(addr uint16, mem memoryReader) (Instruction, error) {
 	isPrefixed := firstByte == cbPrefix
 
 	if isPrefixed {
-		secondByte, err := mem.rb(addr + 1)
+		secondByte, err := mem.Rb(addr + 1)
 		if err != nil {
 			return Instruction{}, err
 		}
@@ -75,7 +64,7 @@ func Decode(addr uint16, mem memoryReader) (Instruction, error) {
 		case 2:
 			// if length is 2, next byte in memory is argument
 			data = make([]byte, 1)
-			argByte, err := mem.rb(addr + 1)
+			argByte, err := mem.Rb(addr + 1)
 			if err != nil {
 				return Instruction{}, err
 			}
@@ -84,8 +73,8 @@ func Decode(addr uint16, mem memoryReader) (Instruction, error) {
 		case 3:
 			// if length is 3, next two bytes in memory are argument
 			data = make([]byte, 2)
-			argByte1, err := mem.rb(addr + 1)
-			argByte2, err := mem.rb(addr + 2)
+			argByte1, err := mem.Rb(addr + 1)
+			argByte2, err := mem.Rb(addr + 2)
 			if err != nil {
 				return Instruction{}, err
 			}

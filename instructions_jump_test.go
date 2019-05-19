@@ -1,6 +1,9 @@
 package cpu
 
-import "testing"
+import (
+	"github.com/mpingram/gameboy-emu/mmu"
+	"testing"
+)
 
 func TestCPU_Jp(t *testing.T) {
 
@@ -17,7 +20,8 @@ func TestCPU_Jp(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			c := New()
+			mmu := mmu.New()
+			c := New(mmu)
 			c.Registers = tt.regs
 
 			c.Jp(tt.args.a16)
@@ -44,7 +48,8 @@ func TestCPU_Jp_HL(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := New()
+			mmu := mmu.New()
+			c := New(mmu)
 			c.Registers = tt.regs
 			c.Jp_HL()
 			// Expect PC to be HL
@@ -71,7 +76,8 @@ func TestCPU_JpNZ(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := New()
+			mmu := mmu.New()
+			c := New(mmu)
 			c.Registers = tt.regs
 			c.JpNZ(tt.args.a16)
 			if c.getFlagZ() == false {
@@ -99,7 +105,8 @@ func TestCPU_JpZ(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := New()
+			mmu := mmu.New()
+			c := New(mmu)
 			c.Registers = tt.regs
 
 			c.JpZ(tt.args.a16)
@@ -128,7 +135,8 @@ func TestCPU_JpNC(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := New()
+			mmu := mmu.New()
+			c := New(mmu)
 			c.Registers = tt.regs
 
 			c.JpNC(tt.args.a16)
@@ -157,7 +165,8 @@ func TestCPU_JpC(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := New()
+			mmu := mmu.New()
+			c := New(mmu)
 			c.Registers = tt.regs
 
 			c.JpC(tt.args.a16)
@@ -191,7 +200,8 @@ func TestCPU_Jr(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := New()
+			mmu := mmu.New()
+			c := New(mmu)
 			c.Registers = tt.regs
 
 			c.Jr(tt.args.r8)
@@ -238,7 +248,8 @@ func TestCPU_JrNZ(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := New()
+			mmu := mmu.New()
+			c := New(mmu)
 			c.Registers = tt.regs
 
 			c.JrNZ(tt.args.r8)
@@ -285,7 +296,8 @@ func TestCPU_JrZ(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := New()
+			mmu := mmu.New()
+			c := New(mmu)
 			c.Registers = tt.regs
 
 			c.JrZ(tt.args.r8)
@@ -332,7 +344,8 @@ func TestCPU_JrNC(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := New()
+			mmu := mmu.New()
+			c := New(mmu)
 			c.Registers = tt.regs
 
 			c.JrNC(tt.args.r8)
@@ -379,7 +392,8 @@ func TestCPU_JrC(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := New()
+			mmu := mmu.New()
+			c := New(mmu)
 			c.Registers = tt.regs
 
 			c.JrC(tt.args.r8)
@@ -418,7 +432,8 @@ func TestCPU_Call(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := New()
+			mmu := mmu.New()
+			c := New(mmu)
 			c.Registers = tt.regs
 
 			c.Call(tt.args.a16)
@@ -459,7 +474,8 @@ func TestCPU_CallNZ(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := New()
+			mmu := mmu.New()
+			c := New(mmu)
 			c.Registers = tt.regs
 
 			c.CallNZ(tt.args.a16)
@@ -514,7 +530,8 @@ func TestCPU_CallZ(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := New()
+			mmu := mmu.New()
+			c := New(mmu)
 			c.Registers = tt.regs
 
 			c.CallZ(tt.args.a16)
@@ -569,7 +586,8 @@ func TestCPU_CallNC(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := New()
+			mmu := mmu.New()
+			c := New(mmu)
 			c.Registers = tt.regs
 
 			c.CallNC(tt.args.a16)
@@ -624,7 +642,8 @@ func TestCPU_CallC(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := New()
+			mmu := mmu.New()
+			c := New(mmu)
 			c.Registers = tt.regs
 
 			c.CallC(tt.args.a16)
@@ -674,7 +693,8 @@ func TestCPU_Ret(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := New()
+			mmu := mmu.New()
+			c := New(mmu)
 			c.Registers = tt.regs
 
 			// initialize memory
@@ -714,7 +734,8 @@ func TestCPU_RetNZ(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := New()
+			mmu := mmu.New()
+			c := New(mmu)
 			c.Registers = tt.regs
 
 			// initialize memory
@@ -768,7 +789,8 @@ func TestCPU_RetZ(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := New()
+			mmu := mmu.New()
+			c := New(mmu)
 			c.Registers = tt.regs
 
 			// initialize memory
@@ -822,7 +844,8 @@ func TestCPU_RetNC(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := New()
+			mmu := mmu.New()
+			c := New(mmu)
 			c.Registers = tt.regs
 
 			// initialize memory
@@ -876,7 +899,8 @@ func TestCPU_RetC(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := New()
+			mmu := mmu.New()
+			c := New(mmu)
 			c.Registers = tt.regs
 
 			// initialize memory
@@ -931,7 +955,8 @@ func TestCPU_Reti(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := New()
+			mmu := mmu.New()
+			c := New(mmu)
 			c.Registers = tt.regs
 			c.ime = tt.ime
 
@@ -989,7 +1014,8 @@ func TestCPU_Rst(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := New()
+			mmu := mmu.New()
+			c := New(mmu)
 			c.Registers = tt.regs
 
 			// Expect call to $0000 + n IF n is 00, 08, 10, 18, 20, 28, 30, 38

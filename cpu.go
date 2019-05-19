@@ -3,9 +3,8 @@ package cpu
 import "github.com/mpingram/gameboy-emu/mmu"
 
 // New initializes and returns an instance of CPU.
-func New() *CPU {
-	mmu := mmu.New()
-	cpu := &CPU{mem: mmu}
+func New(mmu *mmu.MMU) *CPU {
+	cpu := &CPU{mem: mmu.CPUInterface}
 	return cpu
 }
 
@@ -15,7 +14,7 @@ type CPU struct {
 	TClock <-chan int
 	MClock <-chan int
 
-	mem *mmu.MMU
+	mem mmu.MemoryReadWriter
 
 	halted  bool
 	stopped bool

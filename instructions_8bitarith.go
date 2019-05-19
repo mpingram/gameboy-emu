@@ -756,6 +756,12 @@ func (c *CPU) Dec_valHL() {
 	}
 }
 
+// Daa adjusts the A register so that the previous operation,
+// if operated on a binary coded decimal, results in the correct
+// binary coded decimal result.
+// For a better explanation than that, see https://www.reddit.com/r/EmuDev/comments/4ycoix/a_guide_to_the_gameboys_halfcarry_flag/
+//
+// flags affected(znhc): z-0x
 func (c *CPU) Daa() {
 	/**
 	* From https://www.reddit.com/r/EmuDev/comments/4ycoix/a_guide_to_the_gameboys_halfcarry_flag/

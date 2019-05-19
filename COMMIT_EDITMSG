@@ -1,1 +1,9 @@
-Implement 8bit arithmetic instructions
+Change MMU interface
+
+* Separate single MMU interface (Rb, Rw, Ww, Wb) into different interfaces for each
+  component (MMU.CPUInterface, MMU.PPUInterface, etc) in order to
+  address memory read/writing conflicts between different components.
+  (ie, PPU can read from OAM during OAM search phase while CPU cannot,
+  PPU can write and read from VRAM during pixel drawing phase while CPU
+  cannot, etc)
+* Change CPU constructor to take MMU instead of initializing one
