@@ -1,11 +1,8 @@
 package ppu
 
 import (
-	"fmt"
 	"github.com/mpingram/gameboy-emu/mmu"
 )
-
-type Screen []byte
 
 type PPU struct {
 	mem mmu.MemoryReadWriter
@@ -52,13 +49,25 @@ func (p *PPU) getLCDControl() LCDControl {
 	return LCDControl{}
 }
 
-type sprite struct {
-	row [8]pixel
-	x   byte
+// spriteAttrib represents the Sprite (aka Object) Attributes
+// stored in OAM ram.
+type spriteAttrib struct {
+	y    byte // byte 0
+	x    byte // byte 1
+	addr byte // byte 2 -- represents memory location of sprite tile ($8000 + tileNo)
+	bool      // byte 4
 }
 
-func (p *PPU) getSprites(yCoord byte, stat LCDStat) []sprite {
-	return make([]sprite, 10)
+func (p *PPU) getOAMEntries(y byte, lcdc LCDControl) []spriteAttrib {
+	return make([]spriteAttrib, 10)
+}
+
+func (p *PPU) fetchSpritePixels(sa spriteAttrib, row byte) []pixel {
+	return make([]pixel, 8)
+}
+
+func (p *PPU) fetchTilePixels(addr byte, row byte) []pixel {
+	return make([]pixel, 8)
 }
 
 type pallette int
@@ -83,39 +92,6 @@ type pixel struct {
 	palette pallette
 }
 
-type pixelFifo struct {
-	fifo []pixel
-}
-
-func (pf *pixelFifo) overlay(sprite [8]pixel) {
-	// TODO Implement
-}
-
-func (pf *pixelFifo) dequeue() (pixel, error) {
-	if len(pf.fifo) > 0 {
-		px := pf.fifo[0]
-		pf.fifo = pf.fifo[1:]
-		return px, nil
-	}
-	return pixel{}, fmt.Errorf("Pixel fifo is empty")
-}
-
-func (pf *pixelFifo) addTile(tile []pixel) {
-	pf.fifo = append(pf.fifo, tile...)
-}
-
-func (pf *pixelFifo) clear() {
-	pf.fifo = make([]pixel, 0)
-}
-
-func (pf *pixelFifo) size() int {
-	return len(pf.fifo)
-}
-
-func (p *PPU) makePixelFifo(y byte, lcdc LCDControl) pixelFifo {
-	return pixelFifo{}
-}
-
 func (p *PPU) getWindowCoords() (byte, byte) {
 	return 0, 0
 }
@@ -127,124 +103,23 @@ func (p *PPU) getScrollOffsets() (byte, byte) {
 const screenHeight byte = 144
 const screenWidth byte = 160
 
-func (p *PPU) Update() {
+func shiftTileLeft(pixels []pixel, shift byte) []pixel {
+	return pixels
+}
 
-	screen := make([]byte, int(screenWidth)*int(screenHeight)*3)
-
-	// 144 times:
-	// 		Read LCDStat
-	// 		OAM Search (Read ten sprites on this line) (Read OAM, Write to LCDStat)
-	// 		Pixel Drawing (Fill pixel fifo with bg tiles and sprites) (Read OAM(?) and VRAM, Write to LCDStat)
-	// 		H-Blank (write to LCDStat)
-	// V-Blank (write to LCDStat)
-
-	// OAM Search
-	// enter mode [2]
-	// sprites = 10 sprites visible on this line
-
-	// Pixel Drawing
-	// fill pixel fifo with first 8 pixels
-	// for x := 0; x < 160; x++ {
-	//   for all sprites that start on this pixel(-8?), fetch the sprite and overlay it with bg tile (+10 clocks) (Problem -- sprites at pos 0 are off screen, they're on screen starting at pox 8!)
-	//   if window starts on this pixel, throw away pixels in fifo, fetch window tile (+10 clocks?)
-	//   (if end of line, clear fetcher and enter hblank)
-	// }
-
-	// For each scanline (144 times)
-	for y := byte(0); y < screenHeight; y++ {
-
-		// are we currently drawing the window?
-		drawingWindow := false
-
-		// Read relevant memory registers
-		lcdStat := p.getLCDStat()
-		lcdControl := p.getLCDControl()
-		windowX, windowY := p.getWindowCoords()
-		scX, scY := p.getScrollOffsets()
-
-		// I. OAM Search -- find the sprites on this line
-		p.enterMode(OAMSearch)
-		// get the first 10 sprites that are on this y-coordinate
-		sprites := p.getSprites(y, lcdStat)
-
-		// II. Pixel Drawing mode
-		p.enterMode(PixelDrawing)
-		// Fill pixel fifo with the leftmost two tiles on this scanline
-		pixelFifo := pixelFifo{}
-		bgTile1 := p.getBackgroundTile(scX, scY, 0, y, lcdControl)
-		bgTile2 := p.getBackgroundTile(scX+8, scY, 0, y, lcdControl)
-		pixelFifo.addTile(bgTile1)
-		pixelFifo.addTile(bgTile2)
-		// dequeue pixel fifo XScroll % 8 times. This aligns our tiles to the edge of the screen.
-		for i := byte(0); i < scX%8; i++ {
-			pixelFifo.dequeue()
-		}
-
-		// For each pixel on this scanline:
-		for x := byte(0); x < screenWidth; x++ {
-
-			if lcdControl.SpriteEnable {
-				// If a sprite starts at this xpos, layer that sprite on top of the bg tile.
-				// Do this for every sprite that starts at this xpos.
-				// FIXME -- need to do this before dequeing pixel fifo scX % 8 times. Or no, actually no. Huh.
-				// How to deal with fact that sprite at coordinate 0,0 means 'off the screen'? Are sprite coordinates
-				// even relative to screen space? Or are they relative to coordinate space? (Answer: screen space)
-				for sprite := sprites[0]; sprite.x == x; {
-					pixelFifo.overlay(sprite.row)
-					// pop this element off the sprites array
-					sprites = sprites[1:]
-				}
-			}
-
-			if lcdControl.WindowEnable {
-				// If window starts at this xpos and we're past the window ypos, clear fifo and start filling it with window tiles instead.
-				if windowY >= y && windowX == x {
-					drawingWindow = true
-					pixelFifo.clear()
-					windowTile := p.getWindowTile(x, y, scX, scY, lcdControl)
-					pixelFifo.addTile(windowTile)
-				}
-			}
-
-			// pop a pixel off the pixel fifo, colorize it, and send it to the screen
-			px, err := pixelFifo.dequeue()
-			if err != nil {
-				panic(err)
-			}
-			r, g, b := p.colorize(px)
-			screen = append(screen, r, g, b)
-
-			// if pixel fifo has 8 pixels, fill it with the next tile.
-			if pixelFifo.size() <= 8 {
-				// get next tile -- if we're drawing background, get the next background tile,
-				// otherwise get the next window tile.
-				var tile []pixel
-				if drawingWindow {
-					tile = p.getWindowTile(x, y, scX, scY, lcdControl)
-				} else {
-					tile = p.getBackgroundTile(x, y, scX, scY, lcdControl)
-
-				}
-				pixelFifo.addTile(tile)
-			}
-		}
-		// III. H-Blank mode (Horizontal blank) -- wait out the rest of the cycle.
-		p.enterMode(HBlank)
-
-	}
-	// IV. V-Blank mode
-	p.enterMode(VBlank)
-
+func shiftTileRight(pixels []pixel, shift byte) []pixel {
+	return pixels
 }
 
 func (p *PPU) colorize(px pixel) (r, g, b byte) {
 	return 0, 0, 0
 }
 
-func (p *PPU) getWindowTile(scX, scY, xOffset, yOffset byte, lcdc LCDControl) []pixel {
+func (p *PPU) getWindowTile(scX, scY, viewportX, viewportY byte, lcdc LCDControl) []pixel {
+	// parse lcdc to see where to look up window tile map
 	return make([]pixel, 8)
 }
 
-func (p *PPU) getBackgroundTile(scX, scY, xOffset, yOffset byte, lcdc LCDControl) []pixel {
+func (p *PPU) getBackgroundTile(scX, scY, viewportX, viewportY byte, lcdc LCDControl) []pixel {
 	return make([]pixel, 8)
 }
