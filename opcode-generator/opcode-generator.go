@@ -1,6 +1,7 @@
 /**
-* This program generates a map of Sharp LR35902 (the Gameboy CPU) opcodes, along with their
+* This program generates a map of Sharp LR35902 opcodes, along with their
 * timing, length, and flag manipulation information.
+* This generated code is used by cpu/decode.go to interpret opcodes.
 * My incredible laziness in generating this code is possible thanks to the effort and dedication of the Gameboy emulation
 * community, in particular github.com/Immendes, who provided the JSON source file: https://github.com/lmmendes/game-boy-opcodes
 *
@@ -22,7 +23,7 @@ import (
 )
 
 const opcodeSourcePath = "./opcodes.json"
-const outputFilePath = "../opcodes.go"
+const outputFilePath = "../cpu/opcodes.go"
 
 type AllOpcodes struct {
 	Unprefixed map[string]Opcode
