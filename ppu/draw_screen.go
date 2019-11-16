@@ -6,10 +6,12 @@ func (p *PPU) drawScreen() Screen {
 
 	for y := byte(0); y < screenHeight; y++ {
 
-		lcdc := p.getLCDControl()
-		stat := p.getLCDStat()
-		wX, wY := p.getWindowCoords()
-		scX, scY := p.getScrollOffsets()
+		lcdc := p.readLCDControl()
+		stat := p.readLCDStat()
+		wX := p.getWindowX()
+		wY := p.getWindowY()
+		scX := p.getScrollX()
+		scY := p.getScrollY()
 
 		scanline := p.drawScanline(y, lcdc, stat, wX, wY, scX, scY)
 		screen = append(screen, scanline...)
@@ -17,21 +19,6 @@ func (p *PPU) drawScreen() Screen {
 
 	return screen
 }
-
-// Screen is a byte array representing the colorized pixels
-// of a gameboy screen. Its format is
-//
-// 	1 pixel
-//  |-----|
-// [R, G, B, R, G, B, R, G, B]
-// Where R,G,B are one byte representing the reg, green, blue
-// component of each pixel.
-type Screen []byte // byte array of length 144 * 160 * 3, consisting
-
-// scanLine is a byte array representing the colorized pixels
-// of one row of the screen. Its format is the same as the format of Screen,
-// but it is 160 * 3 bytes long.
-type scanline []byte
 
 func (p *PPU) drawScanline(
 	y byte, // the y-coordinate of this scanline
@@ -50,19 +37,20 @@ func (p *PPU) drawScanline(
 
 	// I. OAM Search
 	// =====================
-	p.enterMode(OAMSearch)
+	p.setMode(OAMSearch)
 	// get the first 10 sprites that are on this y-coordinate
 	sprites := p.getOAMEntries(y, lcdc)
 
 	// II. Pixel Drawing mode
 	// =====================
-	p.enterMode(PixelDrawing)
+	p.setMode(PixelDrawing)
+	// Start at SCX-8. (This gives us room to draw sprites offscreen.)
 	// Fill pixel fifo with the leftmost two tiles on this scanline
 	pixelFifo := pixelFifo{}
-	bgTile1 := p.getBackgroundTile(scX, scY, 0, y, lcdc)
-	bgTile2 := p.getBackgroundTile(scX+8, scY, 0, y, lcdc)
-	pixelFifo.addTile(bgTile1)
-	pixelFifo.addTile(bgTile2)
+	bgTileRow1 := p.getBackgroundTileRow(scX, scY, 0, y, lcdc)
+	bgTileRow2 := p.getBackgroundTileRow(scX+8, scY, 0, y, lcdc)
+	pixelFifo.addTile(bgTileRow1)
+	pixelFifo.addTile(bgTileRow2)
 	// dequeue pixel fifo XScroll % 8 times. This aligns our tiles to the edge of the screen.
 	for i := byte(0); i < scX%8; i++ {
 		pixelFifo.dequeue()
@@ -87,7 +75,7 @@ func (p *PPU) drawScanline(
 				// sprite left by (8-sprite.x) pixels.
 				for sprite := sprites[0]; sprite.x < 8; {
 					// overlay this sprite, but shift it left by (8-x) pixels.
-					pixels := p.fetchSpritePixels(sprite, y)
+					pixels := p.getSpriteRow(sprite, y)
 					shifted := shiftTileLeft(pixels, 8-sprite.x)
 					pixelFifo.overlay(shifted)
 					// pop this element off the sprites array
@@ -97,7 +85,7 @@ func (p *PPU) drawScanline(
 				// Draw all the partially-offscreen sprites on the right of the screen.
 				for sprite := sprites[0]; sprite.x > screenWidth; {
 					// overlay this sprite, but shift it right by (???) pixels.
-					pixels := p.fetchSpritePixels(sprite, y)
+					pixels := p.getSpriteRow(sprite, y)
 					shifted := shiftTileRight(pixels, 8-sprite.x)
 					pixelFifo.overlay(shifted)
 					// pop this element off the sprites array
@@ -107,7 +95,7 @@ func (p *PPU) drawScanline(
 
 			// Draw the fully onscreen sprite(s) that start at this x-coordinate.
 			for sprite := sprites[0]; sprite.x-8 == x; {
-				pixels := p.fetchSpritePixels(sprite, y)
+				pixels := p.getSpriteRow(sprite, y)
 				pixelFifo.overlay(pixels)
 				// pop this element off the sprites array
 				sprites = sprites[1:]
@@ -120,7 +108,7 @@ func (p *PPU) drawScanline(
 			if wY >= y && wX == x {
 				drawingWindow = true
 				pixelFifo.clear()
-				windowTile := p.getWindowTile(scX, scY, x, y, lcdc)
+				windowTile := p.getWindowTileRow(scX, scY, x, y, lcdc)
 				pixelFifo.addTile(windowTile)
 			}
 		}
@@ -139,9 +127,9 @@ func (p *PPU) drawScanline(
 			// otherwise get the next window tile.
 			var tile []pixel
 			if drawingWindow {
-				tile = p.getWindowTile(x, y, scX, scY, lcdc)
+				tile = p.getBackgroundTileRow(x, y, scX, scY, lcdc)
 			} else {
-				tile = p.getBackgroundTile(x, y, scX, scY, lcdc)
+				tile = p.getBackgroundTileRow(x, y, scX, scY, lcdc)
 
 			}
 			pixelFifo.addTile(tile)
@@ -150,7 +138,22 @@ func (p *PPU) drawScanline(
 
 	// III. H-Blank mode (Horizontal blank) -- wait out the rest of the cycle.
 	// ======================
-	p.enterMode(HBlank)
+	p.setMode(HBlank)
 
 	return scanline
 }
+
+// Screen is a byte array representing the colorized pixels
+// of a gameboy screen. Its format is
+//
+// 	1 pixel
+//  |-----|
+// [R, G, B, R, G, B, R, G, B]
+// Where R,G,B are one byte representing the reg, green, blue
+// component of each pixel.
+type Screen []byte // byte array of length 144 * 160 * 3, consisting
+
+// scanLine is a byte array representing the colorized pixels
+// of one row of the screen. Its format is the same as the format of Screen,
+// but it is 160 * 3 bytes long.
+type scanline []byte
