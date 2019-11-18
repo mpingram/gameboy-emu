@@ -43,18 +43,23 @@ func (p *PPU) drawScanline(
 	// =====================
 	p.setMode(PixelDrawing)
 
-	// are we currently drawing the window (instead of the background)?
 	drawingWindow := false
 
 	// 1. Fill the pixel fifo with pixels from a) the tile that intersects with SCX-8 and b) the tile to its right.
 	// Note that we often have extra pixels from tile A in the pixel fifo when SCX-8 cuts into the middle of a tile.
 	pixelFifo := pixelFifo{}
-	bgTileRow1 := p.getBackgroundTileRow((scX - 8), scY+y, (scY+y)%8, lcdc)
-	bgTileRow2 := p.getBackgroundTileRow((scX-8)+8, scY+y, (scY+y)%8, lcdc)
+	// scY is an absolute coordinate (based on 0,0, just like the background tile map),
+	// while y is a screen-space coordinate of the current scanline (based on scY.)
+	// So, scY + y is the absolute coordinate of the current scanline. Because
+	// absolute coordinates have one tile every 8px, (scY + y) % 8 gets us the row
+	// of the tile that the current scanline is on.
+	row := (scY + y) % 8
+	bgTileRow1 := p.getBackgroundTileRow((scX - 8), scY+y, row, lcdc)
+	bgTileRow2 := p.getBackgroundTileRow((scX-8)+8, scY+y, row, lcdc)
 	pixelFifo.addTile(bgTileRow1)
 	pixelFifo.addTile(bgTileRow2)
 
-	// 2. Discard pixels from pixel fifo until it lines up with SCX-8. (Deque (SCX-8) % 8 times)
+	// 2. Discard pixels from pixel fifo until it lines up with SCX-8. (Dequeue (SCX-8) % 8 times)
 	for i := byte(0); i < scX%8; i++ {
 		pixelFifo.dequeue()
 	}
@@ -70,8 +75,11 @@ func (p *PPU) drawScanline(
 			if wY <= y && wX == x {
 				drawingWindow = true
 				pixelFifo.clear()
-				windowTileRowA := p.getWindowTileRow(x, y, y%screenHeight, lcdc)
-				windowTileRowB := p.getWindowTileRow(x, y, y%screenHeight, lcdc)
+				// Because window tiles are aligned to the screen, the row we're looking
+				// for is just y (current screen coordinate) mod 8.
+				row := y % 8
+				windowTileRowA := p.getWindowTileRow(x, y, row, lcdc)
+				windowTileRowB := p.getWindowTileRow(x, y, row, lcdc)
 				pixelFifo.addTile(windowTileRowA)
 				pixelFifo.addTile(windowTileRowB)
 			}
@@ -82,7 +90,12 @@ func (p *PPU) drawScanline(
 			// For every sprite that starts at this xpos, overlay that sprite on top of
 			// the pixel fifo.
 			for sprite := sprites[0]; sprite.x == x; {
-				pixels := p.getSpriteRow(sprite, y%sprite.y)
+				// sprite.y is the screen coordinate of the top of the sprite, and we
+				// know that sprite.y <= y (because the sprite is on this row). So we can
+				// get the row of the sprite by y - sprite.y. E.g., if sprite.y=20 and y=26,
+				// the row we want is 26 - 20 == 6.
+				row := y - sprite.y
+				pixels := p.getSpriteRow(sprite, row)
 				pixelFifo.overlay(pixels)
 				// pop this element off the sprites array
 				sprites = sprites[1:]
