@@ -30,6 +30,7 @@ Here's a list of some of the documentation referenced for this emulator:
 * (GB memory map) http://gameboy.mongenel.com/dmg/asmmemmap.html
 * (Exezin's detailed explanation of Direct Memory Access in the GB) https://exez.in/gameboy-dma
 * (Codeslinger guide to Gameboy emulation -- this page also talks about DMA.) http://www.codeslinger.co.uk/pages/projects/gameboy/dma.html
+* (Explanation of the Gameboy's 2-bytes-per-pixel graphics data format)https://www.huderlem.com/demos/gameboy2bpp.html
 
 And a meta-reference containing some of these docs, as well as other GB related info: https://github.com/gbdev/awesome-gbdev
 
