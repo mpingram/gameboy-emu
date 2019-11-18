@@ -136,7 +136,7 @@ func (p *PPU) getOAMEntries(y byte, lcdc LCDControl) []oamEntry {
 // Sprite rows are 0-indexed and run from top to bottom.
 // Sprites can be either 8 or 16 pixels tall, so the bottom row of a sprite can either be
 // row 7 or row 15.
-func (p *PPU) getSpriteRow(spriteData oamEntry, row int) []pixel {
+func (p *PPU) getSpriteRow(spriteData oamEntry, row byte) []pixel {
 	return make([]pixel, 8)
 }
 
@@ -149,7 +149,7 @@ func (p *PPU) getSpriteRow(spriteData oamEntry, row int) []pixel {
 // If the bit is 1, the address is determined using the '$8000' method (the same method sprites use):
 // `addrOffset` is treated as an unsigned byte and the memory address is $8000 + addrOffset.
 // Tile rows are 0-indexed and run from top to bottom, so the bottom row of a tile is row 7.
-func (p *PPU) getTileRow(addrOffset byte, row int) []pixel {
+func (p *PPU) getTileRow(addrOffset byte, row byte) []pixel {
 	return make([]pixel, 8)
 }
 
