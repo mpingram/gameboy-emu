@@ -11,7 +11,7 @@ To run the tests:
 ```
 $ go test [-v for verbose]
 ```
-Currently the emulator isn't functional enough to do anything approximating 'running a game', so testing is just about all you can do with the binaries :D
+Currently the emulator isn't functional enough to do anything approximating 'running a game', so testing is just about all you can do with the binary :D
 
 ## Documentation
 The reason building this emulator is fun and not exhausting is the superb documentation work of the gameboy dev community, which has done pretty much all the hard parts between now and 1989.
@@ -30,6 +30,7 @@ Here's a list of some of the documentation referenced for this emulator:
 * (GB memory map) http://gameboy.mongenel.com/dmg/asmmemmap.html
 * (Exezin's detailed explanation of Direct Memory Access in the GB) https://exez.in/gameboy-dma
 * (Codeslinger guide to Gameboy emulation -- this page also talks about DMA.) http://www.codeslinger.co.uk/pages/projects/gameboy/dma.html
+
 And a meta-reference containing some of these docs, as well as other GB related info: https://github.com/gbdev/awesome-gbdev
 
 ## Architecture
