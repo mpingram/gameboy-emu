@@ -28,7 +28,8 @@ Here's a list of some of the documentation referenced for this emulator:
 * (GB dev FAQs) http://www.devrs.com/gb/files/faqs.html
 * (Imran Nazar's GB emulator in JS follow-along) http://imrannazar.com/GameBoy-Emulation-in-JavaScript:-The-CPU
 * (GB memory map) http://gameboy.mongenel.com/dmg/asmmemmap.html
-And a meta-reference containing all of these docs and more: https://github.com/gbdev/awesome-gbdev
+* (Exezin's detailed explanation of Direct Memory Access in the GB) https://exez.in/gameboy-dma
+And a meta-reference containing some of these docs, as well as other GB related info: https://github.com/gbdev/awesome-gbdev
 
 ## Architecture
 The emulator code is split into three main parts, the CPU, the PPU (Pixel Processing Unit), and the MMU (Memory Management Unit).
