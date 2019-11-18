@@ -132,11 +132,27 @@ func (p *PPU) getOAMEntries(y byte, lcdc LCDControl) []oamEntry {
 	return make([]oamEntry, 10)
 }
 
-// getSpriteRow returns the pixels, from left to right, of a certain row of the sprite.
+// getSpriteRow returns the 8 pixels, from left to right, of a certain row of the sprite.
 // Sprite rows are 0-indexed and run from top to bottom.
 // Sprites can be either 8 or 16 pixels tall, so the bottom row of a sprite can either be
 // row 7 or row 15.
 func (p *PPU) getSpriteRow(spriteData oamEntry, row byte) []pixel {
+	return make([]pixel, 8)
+}
+
+// getWindowTileRow returns the 8 pixels of a row of a window tile located at
+// screen-based coordinate screenX, screenY. Note that the xy coordinates are based on
+// _the top left of the screen_.
+// Reference: https://gbdev.gg8.se/wiki/articles/Video_Display#VRAM_Tile_Data
+func (p *PPU) getWindowTileRow(screenX, screenY, row byte, lcdc LCDControl) []pixel {
+	// parse lcdc to see where to look up window tile map
+	return make([]pixel, 8)
+}
+
+// getBackgroundTileRow returns the 8 pixels of a row of a background tile located at
+// coordinate x, y.
+func (p *PPU) getBackgroundTileRow(x, y, row byte, lcdc LCDControl) []pixel {
+	// parse lcdc to see where to look up bg tile map
 	return make([]pixel, 8)
 }
 
@@ -184,7 +200,6 @@ const (
 	col4
 )
 
-// FIXME is this the right abstraction? Should palette be included here?
 type pixel struct {
 	color   colorNumber
 	palette palette
@@ -223,6 +238,7 @@ func (p *PPU) getLY() byte {
 // LYCoincidenceInterruptEnabled bit is set in the LCDStat register, then the
 // LYCoincidenceInterrupt is triggered and program execution jumps to that routine.
 // Reads the LYC (LYCompare) ($FF45) memory register.
+// FIXME does ppu actually need to know about this...
 func (p *PPU) getLYCompare() byte {
 	return 0
 }
@@ -249,15 +265,4 @@ func shiftTileRight(pixels []pixel, shift byte) []pixel {
 
 func (p *PPU) colorize(px pixel) (r, g, b byte) {
 	return 0, 0, 0
-}
-
-// Reference: https://gbdev.gg8.se/wiki/articles/Video_Display#VRAM_Tile_Data
-// Reference: https://www.huderlem.com/demos/gameboy2bpp.html
-func (p *PPU) getWindowTileRow(scX, scY, viewportX, viewportY byte, lcdc LCDControl) []pixel {
-	// parse lcdc to see where to look up window tile map
-	return make([]pixel, 8)
-}
-
-func (p *PPU) getBackgroundTileRow(scX, scY, viewportX, viewportY byte, lcdc LCDControl) []pixel {
-	return make([]pixel, 8)
 }

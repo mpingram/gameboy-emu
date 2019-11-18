@@ -6,6 +6,7 @@ func (p *PPU) drawScreen() Screen {
 
 	for y := byte(0); y < screenHeight; y++ {
 
+		// re-read these registers before every scanline
 		lcdc := p.readLCDControl()
 		stat := p.readLCDStat()
 		wX := p.getWindowX()
@@ -46,10 +47,10 @@ func (p *PPU) drawScanline(
 	drawingWindow := false
 
 	// 1. Fill the pixel fifo with pixels from a) the tile that intersects with SCX-8 and b) the tile to its right.
-	//			Note that we often have extra pixels from tile A in the pixel fifo when SCX-8 cuts into the middle of a tile.
+	// Note that we often have extra pixels from tile A in the pixel fifo when SCX-8 cuts into the middle of a tile.
 	pixelFifo := pixelFifo{}
-	bgTileRow1 := p.getBackgroundTileRow(scX, scY, 0, y, lcdc)
-	bgTileRow2 := p.getBackgroundTileRow(scX+8, scY, 0, y, lcdc)
+	bgTileRow1 := p.getBackgroundTileRow((scX - 8), scY+y, (scY+y)%8, lcdc)
+	bgTileRow2 := p.getBackgroundTileRow((scX-8)+8, scY+y, (scY+y)%8, lcdc)
 	pixelFifo.addTile(bgTileRow1)
 	pixelFifo.addTile(bgTileRow2)
 
@@ -61,7 +62,22 @@ func (p *PPU) drawScanline(
 	// 3. For x = 0 up to 159+8: (screen width is 160px, and we started 8px to the left of the screen edge)
 	for x := byte(0); x < screenWidth+8; x++ {
 
-		// 3a. Overlay all sprites that start on this pixel onto the pixel fifo.
+		// 3a. Check if the window starts at this pixel. (Because the window's x coordinate
+		// is relative to the screen, and we started 8px to the left of the screen, we
+		// don't need to worry about the edge case of wX (window.X) being less than x.)
+		if lcdc.WindowEnable {
+			// If window starts at this xpos and we're past the window ypos, clear fifo and start filling it with window tiles instead.
+			if wY <= y && wX == x {
+				drawingWindow = true
+				pixelFifo.clear()
+				windowTileRowA := p.getWindowTileRow(x, y, y%screenHeight, lcdc)
+				windowTileRowB := p.getWindowTileRow(x, y, y%screenHeight, lcdc)
+				pixelFifo.addTile(windowTileRowA)
+				pixelFifo.addTile(windowTileRowB)
+			}
+		}
+
+		// 3b. Overlay all sprites that start on this pixel onto the pixel fifo,
 		if lcdc.SpriteEnable {
 			// For every sprite that starts at this xpos, overlay that sprite on top of
 			// the pixel fifo.
@@ -70,21 +86,6 @@ func (p *PPU) drawScanline(
 				pixelFifo.overlay(pixels)
 				// pop this element off the sprites array
 				sprites = sprites[1:]
-			}
-		}
-
-		// 3b. Check if the window starts at this pixel. (Because the window's x coordinate
-		// is relative to the screen, and we started 8px to the left of the screen, we
-		// don't need to worry about the edge case of wX (window.X) being less than x.)
-		if lcdc.WindowEnable {
-			// If window starts at this xpos and we're past the window ypos, clear fifo and start filling it with window tiles instead.
-			if wY <= y && wX == x {
-				drawingWindow = true
-				pixelFifo.clear()
-				windowTileRowA := p.getWindowTileRow(x, y, x, y, lcdc)
-				windowTileRowB := p.getWindowTileRow(x, y, x, y, lcdc)
-				pixelFifo.addTile(windowTileRowA)
-				pixelFifo.addTile(windowTileRowB)
 			}
 		}
 
@@ -104,10 +105,9 @@ func (p *PPU) drawScanline(
 			// otherwise get the next window tile.
 			var tile []pixel
 			if drawingWindow {
-				tile = p.getBackgroundTileRow(x+8, y, scX, scY, lcdc)
+				tile = p.getWindowTileRow(x+8, y, y%screenHeight, lcdc)
 			} else {
-				tile = p.getBackgroundTileRow(x+8, y, scX, scY, lcdc)
-
+				tile = p.getBackgroundTileRow((scX-8)+8, scY+y, (scY+y)%8, lcdc)
 			}
 			pixelFifo.addTile(tile)
 		}
