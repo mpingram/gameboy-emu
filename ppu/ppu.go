@@ -11,8 +11,8 @@ type PPU struct {
 	mem mmu.MemoryReadWriter
 }
 
-const screenHeight byte = 144
-const screenWidth byte = 160
+const screenHeight = 144
+const screenWidth = 160
 
 // Mode represents the 'drawing mode' of the Gameboy,
 // which is stored in bits 0 and 1 of the LCDStat memory register.
@@ -71,6 +71,8 @@ type LCDControl struct {
 
 // LCDStat represents a memory register located at [FIXME address] which is
 // used to enable some interrupts related to drawing the LCD screen
+// FIXME should PPU care about this? Or MMU?
+// Why should the PPU care about it? The only bits it needs to set are Mode (verify this?)
 type LCDStat struct {
 	LYCoincidenceInterruptEnable bool // bit 6
 	OAMInterruptEnable           bool // bit 5
@@ -80,6 +82,7 @@ type LCDStat struct {
 	Mode                         Mode // bits 1,0
 }
 
+// FIXME should PPU care about this?
 func (p *PPU) readLCDStat() LCDStat {
 	// FIXME implement -- read LCDStat from mmu
 	return LCDStat{}
