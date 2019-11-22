@@ -1,20 +1,141 @@
 package ppu
 
+import "fmt"
+
 func (p *PPU) drawScreen() Screen {
 
-	screen := make(Screen, int(screenHeight)*int(screenWidth)*3)
+	screen := make(Screen, screenHeight*screenWidth*3)
 
 	for y := byte(0); y < screenHeight; y++ {
 
-		lcdc := p.getLCDControl()
-		stat := p.getLCDStat()
-		wX, wY := p.getWindowCoords()
-		scX, scY := p.getScrollOffsets()
+		// re-read these registers before every scanline (after every V-Blank period)
+		lcdc := p.readLCDControl()
+		wX := p.getWindowX()
+		wY := p.getWindowY()
+		scX := p.getScrollX()
+		scY := p.getScrollY()
 
-		scanline := p.drawScanline(y, lcdc, stat, wX, wY, scX, scY)
-		screen = append(screen, scanline...)
+		// reset the flag for whether or not we're drawing the window
+		drawingWindow := false
+
+		// I. OAM Search
+		// =====================
+		p.setMode(OAMSearch)
+		// get the first 10 sprites that are on this y-coordinate
+		sprites := p.getOAMEntries(y, lcdc)
+
+		// II. Pixel Drawing mode
+		// =====================
+		p.setMode(PixelDrawing)
+
+		// 1. Start 8x to the left of the screen edge (scX-8). Fill the pixel fifo with pixels
+		// from a) the tile that intersects with scX-8 and b) the tile to its right.
+		// Note that the pixel fifo probably contains extra pixels from tile A, unless tile A's
+		// left edge happens to line up perfectly with scX-8.
+		pixelFifo := pixelFifo{}
+		// scY is an absolute coordinate (based on 0,0, just like the background tile map),
+		// while y is a screen-space coordinate of the current scanline (based on scY.)
+		// So, scY + y is the absolute coordinate of the current scanline. Because
+		// absolute coordinates have one tile every 8px, (scY + y) % 8 gets us the row
+		// of the tile that the current scanline is on.
+		row := (scY + y) % 8
+		bgTileRow1 := p.getBackgroundTileRow((scX - 8), scY+y, row, lcdc)
+		bgTileRow2 := p.getBackgroundTileRow(scX, scY+y, row, lcdc)
+		pixelFifo.addTile(bgTileRow1)
+		pixelFifo.addTile(bgTileRow2)
+
+		// 2. Discard pixels from pixel fifo until it lines up with SCX-8. (Dequeue (SCX-8) % 8 times)
+		for i := byte(0); i < (scX-8)%8; i++ {
+			pixelFifo.dequeue()
+		}
+
+		// 3. For x = -8 up to 159: (x=-8 corresponds to scX-8)
+		for x := -8; x < screenWidth; x++ {
+
+			// 3a. Check if the window starts at this pixel. (Because the window's x coordinate
+			// is relative to the screen, and we started 8px to the left of the screen, we
+			// don't need to worry about the edge case of wX (window.X) being less than x.)
+			if lcdc.WindowEnable {
+				// If window starts at this xpos and we're past the window ypos, clear fifo and start filling it with window tiles instead.
+				// wX and x are cast to ints to avoid underflow issues.
+				if wY <= y && int(wX) == x {
+					drawingWindow = true
+					pixelFifo.clear()
+					// Because window tiles are aligned to the screen, the row we're looking
+					// for is just y (current screen coordinate) mod 8.
+					row := y % 8
+					// We know that x is at least 0 and x is at most 159.
+					// (x is at least zero because of the int(wX) == x check earlier,
+					// and at most 159 due to the for loop.)
+					// Therefore the byte(x) conversion is safe (i.e, x will always fit into a byte.)
+					windowTileRowA := p.getWindowTileRow(byte(x), y, row, lcdc)
+					windowTileRowB := p.getWindowTileRow(byte(x)+8, y, row, lcdc)
+					pixelFifo.addTile(windowTileRowA)
+					pixelFifo.addTile(windowTileRowB)
+				}
+			}
+
+			// 3b. Overlay all sprites that start on this pixel onto the pixel fifo,
+			if lcdc.SpriteEnable {
+				// For every sprite that starts at this xpos, overlay that sprite on top of
+				// the pixel fifo. sprite.x is shifted 8px to the left of the screen
+				// coordinate system.
+				for sprite := sprites[0]; int(sprite.x)-8 == x; {
+					// sprite.y is the screen coordinate of the top of the sprite, shifted up
+					// by 16px. We know that (sprite.y + 16) <= y (because the sprite is on this row
+					// according to fetchOAMEntries.). So we can get the row of the sprite
+					// by y - sprite.y. E.g., if sprite.y=20 and y=26, the row we want is 26 - 20 == 6.
+					row := y - (sprite.y + 16)
+					pixels := p.getSpriteRow(sprite, row)
+					pixelFifo.overlay(pixels)
+					// pop this element off the sprites array
+					sprites = sprites[1:]
+				}
+			}
+
+			// 3c. Dequeue a pixel from the pixel fifo, colorize it, and draw it to the screen.
+			px, err := pixelFifo.dequeue()
+			if err != nil {
+				panic(err)
+			}
+			// colorize the pixel -- look up its color number in the provided palette.
+			r, g, b := p.colorize(px)
+			// Draw the pixel to the screen.
+			screen = append(screen, r, g, b)
+
+			// 3d. If the pixel fifo contains only one tile, add the next tile to it.
+			if pixelFifo.size() <= 8 {
+				// Get next tile -- if we're drawing background, get the next background tile,
+				// otherwise get the next window tile.
+				var tile []pixel
+				if drawingWindow {
+					// Because window tiles are on the screen coordinate system,
+					// the row we're looking for is just y (current screen coordinate) mod 8.
+					row := y % 8
+					// The byte(x+8) conversion here is safe:
+					// Let n represent the number of pixels in the pixel fifo at the start
+					// of the loop (x=-8). The pixel fifo is filled with 16 pixels and
+					// dequeued up to 7 times, so n >= 9. When n=9, because the pixel fifo
+					// is dequeued once every loop and x is incremented once every loop,
+					// the pixel fifo will contain 8 pixels and trigger this code path when x=-7.
+					// In that case, x+8 > 0, meaning byte(x+8) is safe.
+					tile = p.getWindowTileRow(byte(x+8), y, row, lcdc)
+				} else {
+					// Because background tiles are on the global coordinate system,
+					// the row we're looking for is (scY + y) % 8.
+					row := (scY + y + 16) % 8
+					tile = p.getBackgroundTileRow(scX+byte(x+8), scY+y, row, lcdc)
+				}
+				pixelFifo.addTile(tile)
+			}
+		}
+
+		// III. H-Blank mode (Horizontal blank) -- wait out the rest of the cycle.
+		// ======================
+		p.setMode(HBlank)
 	}
 
+	p.setMode(VBlank)
 	return screen
 }
 
@@ -24,133 +145,35 @@ func (p *PPU) drawScreen() Screen {
 // 	1 pixel
 //  |-----|
 // [R, G, B, R, G, B, R, G, B]
-// Where R,G,B are one byte representing the reg, green, blue
+// Where R,G,B are one byte representing the red, green, blue
 // component of each pixel.
-type Screen []byte // byte array of length 144 * 160 * 3, consisting
+type Screen []byte
 
-// scanLine is a byte array representing the colorized pixels
-// of one row of the screen. Its format is the same as the format of Screen,
-// but it is 160 * 3 bytes long.
-type scanline []byte
+type pixelFifo struct {
+	fifo []pixel
+}
 
-func (p *PPU) drawScanline(
-	y byte, // the y-coordinate of this scanline
-	lcdc LCDControl,
-	stat LCDStat,
-	wX, // the x-coordinate of the window
-	wY, // the y-coordinate of the window
-	scX, // the x scroll amount (ie the x-coordinate of the screen top left)
-	scY byte, // the y scroll amount (ie the y-coordinate of the screen top left)
-) scanline {
+func (pf *pixelFifo) overlay(sprite []pixel) {
+	// TODO Implement
+}
 
-	scanline := make([]byte, int(screenWidth)*3)
-
-	// are we currently drawing the window (instead of the background)?
-	drawingWindow := false
-
-	// I. OAM Search
-	// =====================
-	p.enterMode(OAMSearch)
-	// get the first 10 sprites that are on this y-coordinate
-	sprites := p.getOAMEntries(y, lcdc)
-
-	// II. Pixel Drawing mode
-	// =====================
-	p.enterMode(PixelDrawing)
-	// Fill pixel fifo with the leftmost two tiles on this scanline
-	pixelFifo := pixelFifo{}
-	bgTile1 := p.getBackgroundTile(scX, scY, 0, y, lcdc)
-	bgTile2 := p.getBackgroundTile(scX+8, scY, 0, y, lcdc)
-	pixelFifo.addTile(bgTile1)
-	pixelFifo.addTile(bgTile2)
-	// dequeue pixel fifo XScroll % 8 times. This aligns our tiles to the edge of the screen.
-	for i := byte(0); i < scX%8; i++ {
-		pixelFifo.dequeue()
+func (pf *pixelFifo) dequeue() (pixel, error) {
+	if len(pf.fifo) > 0 {
+		px := pf.fifo[0]
+		pf.fifo = pf.fifo[1:]
+		return px, nil
 	}
+	return pixel{}, fmt.Errorf("Pixel fifo is empty")
+}
 
-	// For each pixel on this scanline:
-	for x := byte(0); x < screenWidth; x++ {
+func (pf *pixelFifo) addTile(tile []pixel) {
+	pf.fifo = append(pf.fifo, tile...)
+}
 
-		// Draw sprites
-		if lcdc.SpriteEnable {
-			// If a sprite starts at this xpos, layer that sprite on top of the bg tile.
-			// Do this for every sprite that starts at this xpos.
-			//
-			// NOTE sprite X,Y coordinates are different from screen coordinates.
-			// Sprite X coordinate starts 8px to left of screen, and sprite Y coordinate starts
-			// 16px off the top of the screen. This is so sprites can be drawn partially off screen.
-			//
-			// Draw all partially-offscreen sprites.
-			if isFirstTile := x == 0; isFirstTile {
-				// Draw all the partially-offscreen sprites on the left of the screen.
-				// We need to overlay these sprites with the tiles in the pixel fifo, but we need to shift the
-				// sprite left by (8-sprite.x) pixels.
-				for sprite := sprites[0]; sprite.x < 8; {
-					// overlay this sprite, but shift it left by (8-x) pixels.
-					pixels := p.fetchSpritePixels(sprite, y)
-					shifted := shiftTileLeft(pixels, 8-sprite.x)
-					pixelFifo.overlay(shifted)
-					// pop this element off the sprites array
-					sprites = sprites[1:]
-				}
-			} else if isLastTile := x == screenWidth-1-8; isLastTile {
-				// Draw all the partially-offscreen sprites on the right of the screen.
-				for sprite := sprites[0]; sprite.x > screenWidth; {
-					// overlay this sprite, but shift it right by (???) pixels.
-					pixels := p.fetchSpritePixels(sprite, y)
-					shifted := shiftTileRight(pixels, 8-sprite.x)
-					pixelFifo.overlay(shifted)
-					// pop this element off the sprites array
-					sprites = sprites[1:]
-				}
-			}
+func (pf *pixelFifo) clear() {
+	pf.fifo = make([]pixel, 0)
+}
 
-			// Draw the fully onscreen sprite(s) that start at this x-coordinate.
-			for sprite := sprites[0]; sprite.x-8 == x; {
-				pixels := p.fetchSpritePixels(sprite, y)
-				pixelFifo.overlay(pixels)
-				// pop this element off the sprites array
-				sprites = sprites[1:]
-			}
-		}
-
-		// Check for window start
-		if lcdc.WindowEnable {
-			// If window starts at this xpos and we're past the window ypos, clear fifo and start filling it with window tiles instead.
-			if wY >= y && wX == x {
-				drawingWindow = true
-				pixelFifo.clear()
-				windowTile := p.getWindowTile(scX, scY, x, y, lcdc)
-				pixelFifo.addTile(windowTile)
-			}
-		}
-
-		// pop a pixel off the pixel fifo, colorize it, and send it to the screen
-		px, err := pixelFifo.dequeue()
-		if err != nil {
-			panic(err)
-		}
-		r, g, b := p.colorize(px)
-		scanline = append(scanline, r, g, b)
-
-		// Refill the pixel fifo if necessary
-		if pixelFifo.size() <= 8 {
-			// get next tile -- if we're drawing background, get the next background tile,
-			// otherwise get the next window tile.
-			var tile []pixel
-			if drawingWindow {
-				tile = p.getWindowTile(x, y, scX, scY, lcdc)
-			} else {
-				tile = p.getBackgroundTile(x, y, scX, scY, lcdc)
-
-			}
-			pixelFifo.addTile(tile)
-		}
-	}
-
-	// III. H-Blank mode (Horizontal blank) -- wait out the rest of the cycle.
-	// ======================
-	p.enterMode(HBlank)
-
-	return scanline
+func (pf *pixelFifo) size() int {
+	return len(pf.fifo)
 }
