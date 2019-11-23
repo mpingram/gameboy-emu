@@ -1,7 +1,6 @@
 package cpu
 
 import (
-	"github.com/mpingram/gameboy-emu/mmu"
 	"testing"
 )
 
@@ -21,8 +20,7 @@ func TestCPU_Ld_rr_d16(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mmu := mmu.New()
-			c := New(mmu)
+			c, _ := testSetup()
 			c.Registers = tt.regs
 
 			c.Ld_rr_d16(tt.args.rr, tt.args.d16)
@@ -50,8 +48,7 @@ func TestCPU_Ld_SP_d16(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mmu := mmu.New()
-			c := New(mmu)
+			c, _ := testSetup()
 			c.Registers = tt.regs
 
 			c.Ld_SP_d16(tt.args.d16)
@@ -74,8 +71,7 @@ func TestCPU_Ld_SP_HL(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mmu := mmu.New()
-			c := New(mmu)
+			c, _ := testSetup()
 			c.Registers = tt.regs
 
 			c.Ld_SP_HL()
@@ -104,8 +100,7 @@ func TestCPU_Push_rr(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mmu := mmu.New()
-			c := New(mmu)
+			c, _ := testSetup()
 			c.Registers = tt.regs
 
 			c.Push_rr(tt.args.rr)
@@ -144,8 +139,7 @@ func TestCPU_Pop_rr(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mmu := mmu.New()
-			c := New(mmu)
+			c, _ := testSetup()
 			c.Registers = tt.regs
 			// initialize memory
 			err := c.mem.Ww(c.SP, tt.valSP)

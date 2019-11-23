@@ -1,7 +1,6 @@
 package cpu
 
 import (
-	"github.com/mpingram/gameboy-emu/mmu"
 	"testing"
 )
 
@@ -23,8 +22,7 @@ func TestCPU_Add_r(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mmu := mmu.New()
-			c := New(mmu)
+			c, _ := testSetup()
 			c.Registers = tt.regs
 
 			c.Add_r(tt.args.r)
@@ -60,8 +58,7 @@ func TestCPU_Add_d8(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mmu := mmu.New()
-			c := New(mmu)
+			c, _ := testSetup()
 			c.Registers = tt.regs
 
 			c.Add_d8(tt.args.d8)
@@ -93,8 +90,7 @@ func TestCPU_Add_valHL(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mmu := mmu.New()
-			c := New(mmu)
+			c, _ := testSetup()
 			c.Registers = tt.regs
 			// initialize memory
 			err := c.mem.Wb(c.getHL(), tt.valHL)
@@ -134,8 +130,7 @@ func TestCPU_Adc_r(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mmu := mmu.New()
-			c := New(mmu)
+			c, _ := testSetup()
 			c.Registers = tt.regs
 
 			prevCarry := c.F&0x10 != 0
@@ -177,8 +172,7 @@ func TestCPU_Adc_d8(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mmu := mmu.New()
-			c := New(mmu)
+			c, _ := testSetup()
 			c.Registers = tt.regs
 
 			carry := c.F&0x10 != 0
@@ -214,8 +208,7 @@ func TestCPU_Adc_valHL(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mmu := mmu.New()
-			c := New(mmu)
+			c, _ := testSetup()
 			c.Registers = tt.regs
 			// initialize memory
 			err := c.mem.Wb(c.getHL(), tt.valHL)
@@ -260,8 +253,7 @@ func TestCPU_Sub_r(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mmu := mmu.New()
-			c := New(mmu)
+			c, _ := testSetup()
 			c.Registers = tt.regs
 
 			c.Sub_r(tt.args.r)
@@ -297,8 +289,7 @@ func TestCPU_Sub_d8(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mmu := mmu.New()
-			c := New(mmu)
+			c, _ := testSetup()
 			c.Registers = tt.regs
 
 			c.Sub_d8(tt.args.d8)
@@ -330,8 +321,7 @@ func TestCPU_Sub_valHL(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mmu := mmu.New()
-			c := New(mmu)
+			c, _ := testSetup()
 			c.Registers = tt.regs
 			// initialize memory
 			err := c.mem.Wb(c.getHL(), tt.valHL)
@@ -371,8 +361,7 @@ func TestCPU_Sbc_r(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mmu := mmu.New()
-			c := New(mmu)
+			c, _ := testSetup()
 			c.Registers = tt.regs
 			carry := c.F&0x10 != 0
 
@@ -413,8 +402,7 @@ func TestCPU_Sbc_d8(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mmu := mmu.New()
-			c := New(mmu)
+			c, _ := testSetup()
 			c.Registers = tt.regs
 			carry := c.F&0x10 != 0
 
@@ -450,8 +438,7 @@ func TestCPU_Sbc_valHL(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mmu := mmu.New()
-			c := New(mmu)
+			c, _ := testSetup()
 			c.Registers = tt.regs
 			// initialize memory
 			err := c.mem.Wb(c.getHL(), tt.valHL)
@@ -495,8 +482,8 @@ func TestCPU_And_r(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mmu := mmu.New()
-			c := New(mmu)
+			c, _ := testSetup()
+
 			c.Registers = tt.regs
 
 			c.And_r(tt.args.r)
@@ -532,8 +519,8 @@ func TestCPU_And_d8(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mmu := mmu.New()
-			c := New(mmu)
+			c, _ := testSetup()
+
 			c.Registers = tt.regs
 
 			c.And_d8(tt.args.d8)
@@ -565,8 +552,8 @@ func TestCPU_And_valHL(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mmu := mmu.New()
-			c := New(mmu)
+			c, _ := testSetup()
+
 			c.Registers = tt.regs
 			// initialize memory
 			err := c.mem.Wb(c.getHL(), tt.valHL)
@@ -606,8 +593,8 @@ func TestCPU_Xor_r(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mmu := mmu.New()
-			c := New(mmu)
+			c, _ := testSetup()
+
 			c.Registers = tt.regs
 			get, _ := c.getReg8(tt.args.r)
 			valR := get()
@@ -644,8 +631,8 @@ func TestCPU_Xor_d8(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mmu := mmu.New()
-			c := New(mmu)
+			c, _ := testSetup()
+
 			c.Registers = tt.regs
 
 			c.Xor_d8(tt.args.d8)
@@ -677,8 +664,8 @@ func TestCPU_Xor_valHL(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mmu := mmu.New()
-			c := New(mmu)
+			c, _ := testSetup()
+
 			c.Registers = tt.regs
 			// initialize memory
 			err := c.mem.Wb(c.getHL(), tt.valHL)
@@ -718,8 +705,8 @@ func TestCPU_Or_r(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mmu := mmu.New()
-			c := New(mmu)
+			c, _ := testSetup()
+
 			c.Registers = tt.regs
 
 			c.Or_r(tt.args.r)
@@ -755,8 +742,8 @@ func TestCPU_Or_d8(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mmu := mmu.New()
-			c := New(mmu)
+			c, _ := testSetup()
+
 			c.Registers = tt.regs
 
 			c.Or_d8(tt.args.d8)
@@ -788,8 +775,8 @@ func TestCPU_Or_valHL(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mmu := mmu.New()
-			c := New(mmu)
+			c, _ := testSetup()
+
 			c.Registers = tt.regs
 			// initialize memory
 			err := c.mem.Wb(c.getHL(), tt.valHL)
@@ -829,8 +816,8 @@ func TestCPU_Cp_r(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mmu := mmu.New()
-			c := New(mmu)
+			c, _ := testSetup()
+
 			c.Registers = tt.regs
 
 			c.Cp_r(tt.args.r)
@@ -866,8 +853,8 @@ func TestCPU_Cp_d8(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mmu := mmu.New()
-			c := New(mmu)
+			c, _ := testSetup()
+
 			c.Registers = tt.regs
 
 			c.Cp_d8(tt.args.d8)
@@ -899,8 +886,8 @@ func TestCPU_Cp_valHL(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mmu := mmu.New()
-			c := New(mmu)
+			c, _ := testSetup()
+
 			c.Registers = tt.regs
 			// initialize memory
 			err := c.mem.Wb(c.getHL(), tt.valHL)
@@ -939,8 +926,8 @@ func TestCPU_Inc_r(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mmu := mmu.New()
-			c := New(mmu)
+			c, _ := testSetup()
+
 			c.Registers = tt.regs
 			getR, _ := c.getReg8(tt.args.r)
 			oldR := getR()
@@ -973,8 +960,8 @@ func TestCPU_Inc_valHL(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mmu := mmu.New()
-			c := New(mmu)
+			c, _ := testSetup()
+
 			c.Registers = tt.regs
 			err := c.mem.Wb(c.getHL(), tt.valHL)
 			if err != nil {
@@ -1016,8 +1003,8 @@ func TestCPU_Dec_r(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mmu := mmu.New()
-			c := New(mmu)
+			c, _ := testSetup()
+
 			c.Registers = tt.regs
 			getR, _ := c.getReg8(tt.args.r)
 			oldR := getR()
@@ -1050,8 +1037,8 @@ func TestCPU_Dec_valHL(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mmu := mmu.New()
-			c := New(mmu)
+			c, _ := testSetup()
+
 			c.Registers = tt.regs
 			err := c.mem.Wb(c.getHL(), tt.valHL)
 			if err != nil {
@@ -1101,8 +1088,8 @@ func TestCPU_Daa(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mmu := mmu.New()
-			c := New(mmu)
+			c, _ := testSetup()
+
 			c.Registers = tt.regs
 
 			c.Daa()
@@ -1132,8 +1119,8 @@ func TestCPU_Cpl(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mmu := mmu.New()
-			c := New(mmu)
+			c, _ := testSetup()
+
 			c.Registers = tt.regs
 
 			c.Cpl()

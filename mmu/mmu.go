@@ -1,25 +1,11 @@
 package mmu
 
-import "math/rand"
+import (
+	"io"
+	"os"
+)
 
-// NOTE -- MMU needs to know which areas of memory can't be read by CPU, vs which can
-// be read by PPU, *at different times depending on PPU state*
-// (ie, OAM RAM is inaccessible to CPU during OAM search / Pixel transfer modes, and VRAM is
-// inaccessible to CPU during Pixel transfer mode).
-//
-// The current design does not take that into account -- we could dynamically set which
-// areas of memory are writable / readable, but MMU doesn't know about CPU/PPU and would
-// have no way of knowing which reads are coming from which source. (ie, ppu could say 'lock this
-// area of memory', but how would we know that future reads come from PPU? Wait... that's what a
-// lock is. Holy- ok that might be an area we can research)
-//
-// Need to consider a change in design from a 'dumb' mmu? One that's aware of the state
-// of the PPU (through LCDStatus register, also located in memory...) ... or, can have
-// CPU self-police its reads/writes to memory during OAM search / pixel transfer modes.
-// Or, can implement locks.
-//
-// Could have mmu.AcquireLock(addr, size) (mmu.Lock, err)
-//
+const bootRomFileLocation = "./roms/boot/DMG_ROM.bin"
 
 type MemoryReadWriter interface {
 	MemoryReader
@@ -36,9 +22,16 @@ type MemoryWriter interface {
 	Ww(addr uint16, bb uint16) error
 }
 
-func New() *MMU {
+type MMUOptions struct {
+	GameRom io.Reader
+}
+
+func New(opt MMUOptions) *MMU {
 	mmu := &MMU{}
 	mmu.init()
+	if opt.GameRom != nil {
+		mmu.loadGameRom(opt.GameRom)
+	}
 	return mmu
 }
 
@@ -49,15 +42,39 @@ type MMU struct {
 }
 
 func (m *MMU) init() {
-	// initialize backing memory array
+	// create backing memory array
 	m.mem = make([]byte, 0x10000)
-	// initialize memory to randomized values
-	rand.Read(m.mem)
+	// zero out all memory (FIXME for true emulation, this should actually randomize all(?) values)
+	for i := 0; i < 0x10000; i++ {
+		m.mem[i] = 0x00
+	}
 
-	// TODO add boot ROM, other initialization things
+	// load boot rom into memory at $0000-$0100
+	// DEBUG -- for now, read boot rom from hardcoded file location
+	bootRom, err := os.Open(bootRomFileLocation)
+	if err != nil {
+		panic(err)
+	}
+	bootRomMemory := m.mem[0x000:0x0100]
+	_, err = bootRom.Read(bootRomMemory)
+	if err != nil {
+		panic(err)
+	}
+
 	// TODO memory bank switching
 
 	// Set up CPU interface and PPU interface
 	m.CPUInterface = &cpuMemoryInterface{mmu: m}
 	m.PPUInterface = &ppuMemoryInterface{mmu: m}
+}
+
+func (m *MMU) loadGameRom(io.Reader) {
+	// do nothing
+}
+
+func (m *MMU) Dump(out io.Writer) {
+	_, err := out.Write(m.mem)
+	if err != nil {
+		panic(err)
+	}
 }
