@@ -1064,7 +1064,7 @@ func d16(data []byte) uint16 {
 	if len(data) != 2 {
 		panic(fmt.Errorf("Incorrect data in call to d16: %v", data))
 	}
-	return uint16(data[0]<<8) | uint16(data[1])
+	return uint16(data[1])<<8 | uint16(data[0])
 }
 
 func d8(data []byte) byte {
@@ -1078,7 +1078,7 @@ func a16(data []byte) uint16 {
 	if len(data) != 2 {
 		panic(fmt.Errorf("Incorrect data in call to a16: %v", data))
 	}
-	return uint16(data[0]<<8) | uint16(data[1])
+	return uint16(data[1])<<8 | uint16(data[0])
 }
 
 func a8(data []byte) byte {
