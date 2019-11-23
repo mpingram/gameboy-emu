@@ -1,6 +1,9 @@
 package cpu
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/mpingram/gameboy-emu/mmu"
 )
 
@@ -34,7 +37,20 @@ const (
 type OpcodeValue uint8
 
 func (i *Instruction) String() string {
-	return i.opc.mnemonic
+	mnemonic := i.opc.mnemonic
+	if strings.Contains(mnemonic, "d8") {
+		return fmt.Sprintf("%s: 0x%02x", mnemonic, d8(i.data))
+	} else if strings.Contains(mnemonic, "d16") {
+		return fmt.Sprintf("%s: 0x%04x", mnemonic, d16(i.data))
+	} else if strings.Contains(mnemonic, "a8") {
+		return fmt.Sprintf("%s: $%02X", mnemonic, a8(i.data))
+	} else if strings.Contains(mnemonic, "a16") {
+		return fmt.Sprintf("%s: $%04X", mnemonic, a16(i.data))
+	} else if strings.Contains(mnemonic, "r8") {
+		return fmt.Sprintf("%s: 0x%02x", mnemonic, r8(i.data))
+	} else {
+		return fmt.Sprintf("%s", mnemonic)
+	}
 }
 
 func Decode(addr uint16, mem mmu.MemoryReader) Instruction {
