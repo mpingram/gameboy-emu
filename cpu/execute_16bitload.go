@@ -39,19 +39,13 @@ func (c *CPU) Ld_SP_HL() {
 func (c *CPU) Push_rr(rr Reg16) {
 	c.SP -= 2 // stack grows downwards
 	get, _ := c.getReg16(rr)
-	err := c.mem.Ww(c.SP, get())
-	if err != nil {
-		panic(err)
-	}
+	c.mem.Ww(c.SP, get())
 }
 
 // Pop_rr pops a value off the stack and places it in 16bit register rr.
 // (I.e., it loads word at address SP into rr, then decrements SP.)
 func (c *CPU) Pop_rr(rr Reg16) {
-	w, err := c.mem.Rw(c.SP)
-	if err != nil {
-		panic(err)
-	}
+	w := c.mem.Rw(c.SP)
 	_, set := c.getReg16(rr)
 	set(w)
 	c.SP += 2 // stack grows downwards

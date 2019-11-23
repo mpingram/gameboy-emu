@@ -9,8 +9,8 @@ import (
 
 func main() {
 	mmu := mmu.New(mmu.MMUOptions{})
-	cpu := cpu.New(mmu)
-	cpu.SetBreakpoint(0x100) // this should be just after boot rom
+	cpu := cpu.New(mmu.CPUInterface)
+	cpu.SetBreakpoint(0x00a1) // this should be just after boot rom
 
 	// this function call takes over the main thread.
 	// Should terminate once breakpoint is hit

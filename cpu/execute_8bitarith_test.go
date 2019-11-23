@@ -93,10 +93,7 @@ func TestCPU_Add_valHL(t *testing.T) {
 			c, _ := testSetup()
 			c.Registers = tt.regs
 			// initialize memory
-			err := c.mem.Wb(c.getHL(), tt.valHL)
-			if err != nil {
-				t.Error(err)
-			}
+			c.mem.Wb(c.getHL(), tt.valHL)
 
 			c.Add_valHL()
 
@@ -211,10 +208,7 @@ func TestCPU_Adc_valHL(t *testing.T) {
 			c, _ := testSetup()
 			c.Registers = tt.regs
 			// initialize memory
-			err := c.mem.Wb(c.getHL(), tt.valHL)
-			if err != nil {
-				t.Error(err)
-			}
+			c.mem.Wb(c.getHL(), tt.valHL)
 			carry := c.F&0x10 != 0
 
 			c.Adc_valHL()
@@ -324,10 +318,7 @@ func TestCPU_Sub_valHL(t *testing.T) {
 			c, _ := testSetup()
 			c.Registers = tt.regs
 			// initialize memory
-			err := c.mem.Wb(c.getHL(), tt.valHL)
-			if err != nil {
-				t.Error(err)
-			}
+			c.mem.Wb(c.getHL(), tt.valHL)
 
 			c.Sub_valHL()
 
@@ -441,10 +432,7 @@ func TestCPU_Sbc_valHL(t *testing.T) {
 			c, _ := testSetup()
 			c.Registers = tt.regs
 			// initialize memory
-			err := c.mem.Wb(c.getHL(), tt.valHL)
-			if err != nil {
-				t.Error(err)
-			}
+			c.mem.Wb(c.getHL(), tt.valHL)
 			carry := c.F&0x10 != 0
 
 			c.Sbc_valHL()
@@ -556,10 +544,7 @@ func TestCPU_And_valHL(t *testing.T) {
 
 			c.Registers = tt.regs
 			// initialize memory
-			err := c.mem.Wb(c.getHL(), tt.valHL)
-			if err != nil {
-				t.Error(err)
-			}
+			c.mem.Wb(c.getHL(), tt.valHL)
 
 			c.And_valHL()
 
@@ -668,10 +653,7 @@ func TestCPU_Xor_valHL(t *testing.T) {
 
 			c.Registers = tt.regs
 			// initialize memory
-			err := c.mem.Wb(c.getHL(), tt.valHL)
-			if err != nil {
-				t.Error(err)
-			}
+			c.mem.Wb(c.getHL(), tt.valHL)
 
 			c.Xor_valHL()
 
@@ -779,10 +761,7 @@ func TestCPU_Or_valHL(t *testing.T) {
 
 			c.Registers = tt.regs
 			// initialize memory
-			err := c.mem.Wb(c.getHL(), tt.valHL)
-			if err != nil {
-				t.Error(err)
-			}
+			c.mem.Wb(c.getHL(), tt.valHL)
 
 			c.Or_valHL()
 
@@ -890,10 +869,7 @@ func TestCPU_Cp_valHL(t *testing.T) {
 
 			c.Registers = tt.regs
 			// initialize memory
-			err := c.mem.Wb(c.getHL(), tt.valHL)
-			if err != nil {
-				t.Error(err)
-			}
+			c.mem.Wb(c.getHL(), tt.valHL)
 
 			c.Cp_valHL()
 
@@ -963,19 +939,13 @@ func TestCPU_Inc_valHL(t *testing.T) {
 			c, _ := testSetup()
 
 			c.Registers = tt.regs
-			err := c.mem.Wb(c.getHL(), tt.valHL)
-			if err != nil {
-				t.Error(err)
-			}
+			c.mem.Wb(c.getHL(), tt.valHL)
 
 			c.Inc_valHL()
 
 			// Expect (HL) = (oldHL) + 1
 			expected := tt.valHL + 1
-			valHL, err := c.mem.Rb(c.getHL())
-			if err != nil {
-				t.Error(err)
-			}
+			valHL := c.mem.Rb(c.getHL())
 			if valHL != expected {
 				t.Errorf("Expected A to be %02x, got %02x", expected, valHL)
 			}
@@ -1040,19 +1010,13 @@ func TestCPU_Dec_valHL(t *testing.T) {
 			c, _ := testSetup()
 
 			c.Registers = tt.regs
-			err := c.mem.Wb(c.getHL(), tt.valHL)
-			if err != nil {
-				t.Error(err)
-			}
+			c.mem.Wb(c.getHL(), tt.valHL)
 
 			c.Dec_valHL()
 
 			// Expect (HL) = (oldHL) - 1
 			expected := tt.valHL - 1
-			valHL, err := c.mem.Rb(c.getHL())
-			if err != nil {
-				t.Error(err)
-			}
+			valHL := c.mem.Rb(c.getHL())
 			if valHL != expected {
 				t.Errorf("Expected A to be %02x, got %02x", expected, valHL)
 			}

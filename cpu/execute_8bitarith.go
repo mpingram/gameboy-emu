@@ -72,10 +72,7 @@ func (c *CPU) Add_d8(d8 byte) {
 //
 // flags affected (znhc): z0hc
 func (c *CPU) Add_valHL() {
-	b, err := c.mem.Rb(c.getHL())
-	if err != nil {
-		panic(err)
-	}
+	b := c.mem.Rb(c.getHL())
 	sum := c.A + b
 
 	// FLAGS
@@ -163,10 +160,7 @@ func (c *CPU) Adc_d8(d8 byte) {
 //
 // flags affected (znhc): z0hc
 func (c *CPU) Adc_valHL() {
-	valHL, err := c.mem.Rb(c.getHL())
-	if err != nil {
-		panic(err)
-	}
+	valHL := c.mem.Rb(c.getHL())
 	carry := c.getFlagC()
 	sum := c.A + valHL
 	if carry {
@@ -242,10 +236,7 @@ func (c *CPU) Sub_d8(d8 byte) {
 //
 // Flags affected(zhnc): z1hc
 func (c *CPU) Sub_valHL() {
-	valHL, err := c.mem.Rb(c.getHL())
-	if err != nil {
-		panic(err)
-	}
+	valHL := c.mem.Rb(c.getHL())
 	sub := c.A - valHL
 
 	// flags
@@ -326,10 +317,7 @@ func (c *CPU) Sbc_d8(d8 byte) {
 // Flags affected(zhnc): z1hc
 func (c *CPU) Sbc_valHL() {
 	carry := c.getFlagC()
-	valHL, err := c.mem.Rb(c.getHL())
-	if err != nil {
-		panic(err)
-	}
+	valHL := c.mem.Rb(c.getHL())
 	sub := c.A - valHL
 	if carry {
 		sub--
@@ -404,10 +392,7 @@ func (c *CPU) And_d8(d8 byte) {
 //
 // flags affected(znhc): z010
 func (c *CPU) And_valHL() {
-	valHL, err := c.mem.Rb(c.getHL())
-	if err != nil {
-		panic(err)
-	}
+	valHL := c.mem.Rb(c.getHL())
 	res := c.A & valHL
 
 	// FLAGS
@@ -479,10 +464,7 @@ func (c *CPU) Xor_d8(d8 byte) {
 //
 // Flags affected(zhnc): z000
 func (c *CPU) Xor_valHL() {
-	valHL, err := c.mem.Rb(c.getHL())
-	if err != nil {
-		panic(err)
-	}
+	valHL := c.mem.Rb(c.getHL())
 	res := c.A ^ valHL
 
 	// FLAGS
@@ -554,10 +536,7 @@ func (c *CPU) Or_d8(d8 byte) {
 //
 // Flags affected(zhnc): z000
 func (c *CPU) Or_valHL() {
-	valHL, err := c.mem.Rb(c.getHL())
-	if err != nil {
-		panic(err)
-	}
+	valHL := c.mem.Rb(c.getHL())
 	res := c.A | valHL
 
 	// FLAGS
@@ -625,10 +604,7 @@ func (c *CPU) Cp_d8(d8 byte) {
 //
 // Flags affected(zhnc): z1hc
 func (c *CPU) Cp_valHL() {
-	valHL, err := c.mem.Rb(c.getHL())
-	if err != nil {
-		panic(err)
-	}
+	valHL := c.mem.Rb(c.getHL())
 	sub := c.A - valHL
 
 	// flags
@@ -675,10 +651,7 @@ func (c *CPU) Inc_r(r Reg8) {
 //
 // flags affected(zhnc): z0h-
 func (c *CPU) Inc_valHL() {
-	valHL, err := c.mem.Rb(c.getHL())
-	if err != nil {
-		panic(err)
-	}
+	valHL := c.mem.Rb(c.getHL())
 	res := valHL + 1
 
 	// FLAGS
@@ -695,10 +668,7 @@ func (c *CPU) Inc_valHL() {
 	// c
 	// do nothing
 
-	err = c.mem.Wb(c.getHL(), res)
-	if err != nil {
-		panic(err)
-	}
+	c.mem.Wb(c.getHL(), res)
 }
 
 // Dec_r decrements register r
@@ -730,10 +700,7 @@ func (c *CPU) Dec_r(r Reg8) {
 //
 // flags affected(zhnc): z1h-
 func (c *CPU) Dec_valHL() {
-	valHL, err := c.mem.Rb(c.getHL())
-	if err != nil {
-		panic(err)
-	}
+	valHL := c.mem.Rb(c.getHL())
 	res := valHL - 1
 
 	// FLAGS
@@ -750,10 +717,7 @@ func (c *CPU) Dec_valHL() {
 	// c
 	// do nothing
 
-	err = c.mem.Wb(c.getHL(), res)
-	if err != nil {
-		panic(err)
-	}
+	c.mem.Wb(c.getHL(), res)
 }
 
 // Daa adjusts the A register so that the previous operation,

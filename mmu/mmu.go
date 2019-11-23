@@ -7,21 +7,6 @@ import (
 
 const bootRomFileLocation = "./roms/boot/DMG_ROM.bin"
 
-type MemoryReadWriter interface {
-	MemoryReader
-	MemoryWriter
-}
-
-type MemoryReader interface {
-	Rb(addr uint16) (byte, error)
-	Rw(addr uint16) (uint16, error)
-}
-
-type MemoryWriter interface {
-	Wb(addr uint16, b byte) error
-	Ww(addr uint16, bb uint16) error
-}
-
 type MMUOptions struct {
 	GameRom io.Reader
 }
@@ -37,8 +22,8 @@ func New(opt MMUOptions) *MMU {
 
 type MMU struct {
 	mem          []byte
-	CPUInterface MemoryReadWriter
-	PPUInterface MemoryReadWriter
+	CPUInterface *cpuMemoryInterface
+	PPUInterface *ppuMemoryInterface
 }
 
 func (m *MMU) init() {

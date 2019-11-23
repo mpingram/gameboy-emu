@@ -111,10 +111,7 @@ func TestCPU_Push_rr(t *testing.T) {
 			}
 			// Expect (SP) to be rr
 			getrr, _ := c.getReg16(tt.args.rr)
-			valSP, err := c.mem.Rw(c.SP)
-			if err != nil {
-				t.Error(err)
-			}
+			valSP := c.mem.Rw(c.SP)
 			if valSP != getrr() {
 				t.Errorf("Expected (SP) to be %04x, got %04x", getrr(), valSP)
 			}
@@ -142,10 +139,7 @@ func TestCPU_Pop_rr(t *testing.T) {
 			c, _ := testSetup()
 			c.Registers = tt.regs
 			// initialize memory
-			err := c.mem.Ww(c.SP, tt.valSP)
-			if err != nil {
-				t.Error(err)
-			}
+			c.mem.Ww(c.SP, tt.valSP)
 
 			c.Pop_rr(tt.args.rr)
 

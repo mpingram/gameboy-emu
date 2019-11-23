@@ -3,8 +3,6 @@ package cpu
 import (
 	"fmt"
 	"strings"
-
-	"github.com/mpingram/gameboy-emu/mmu"
 )
 
 type Instruction struct {
@@ -53,7 +51,7 @@ func (i *Instruction) String() string {
 	}
 }
 
-func Decode(addr uint16, mem mmu.MemoryReader) Instruction {
+func Decode(addr uint16, mem MemoryReader) Instruction {
 
 	// FIXME: EDGE CASE: 'HALT' opcode may be 1 or 2 bytes long. Officially,
 	// it's supposed to be 0x01 0x00 (which looks like HALT, NOP), so some
@@ -65,20 +63,14 @@ func Decode(addr uint16, mem mmu.MemoryReader) Instruction {
 	// =======================
 	// Get the first byte of the opcode and look it up in our opcode table.
 	// =======================
-	firstByte, err := mem.Rb(addr)
-	if err != nil {
-		panic(err)
-	}
+	firstByte := mem.Rb(addr)
 	// 0xCB is a special 'prefix' opcode. If it is present, the next
 	// byte represents an opcode in the CB prefix table.
 	cbPrefix := byte(0xCB)
 	isPrefixed := firstByte == cbPrefix
 
 	if isPrefixed {
-		secondByte, err := mem.Rb(addr + 1)
-		if err != nil {
-			panic(err)
-		}
+		secondByte := mem.Rb(addr + 1)
 		val := OpcodeValue(secondByte)
 		// look up opcode in opcode value table for cb-prefixed opcodes
 		opc = prefixedOpcodes[val]
@@ -104,20 +96,14 @@ func Decode(addr uint16, mem mmu.MemoryReader) Instruction {
 		case 2:
 			// if length is 2, next byte in memory is argument
 			data = make([]byte, 1)
-			argByte, err := mem.Rb(addr + 1)
-			if err != nil {
-				panic(err)
-			}
+			argByte := mem.Rb(addr + 1)
 			data[0] = argByte
 
 		case 3:
 			// if length is 3, next two bytes in memory are argument
 			data = make([]byte, 2)
-			argByte1, err := mem.Rb(addr + 1)
-			argByte2, err := mem.Rb(addr + 2)
-			if err != nil {
-				panic(err)
-			}
+			argByte1 := mem.Rb(addr + 1)
+			argByte2 := mem.Rb(addr + 2)
 			data[0] = argByte1
 			data[1] = argByte2
 		}

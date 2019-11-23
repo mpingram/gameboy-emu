@@ -92,10 +92,7 @@ func (c *CPU) JrC(r8 int8) {
 // Call calls a subroutine at address a16 (push PC onto stack, jump to a16)
 func (c *CPU) Call(a16 uint16) {
 	c.SP -= 2 // stack grows downward in memory
-	err := c.mem.Ww(c.SP, c.PC)
-	if err != nil {
-		panic(err)
-	}
+	c.mem.Ww(c.SP, c.PC)
 	c.PC = a16
 }
 
@@ -130,10 +127,7 @@ func (c *CPU) CallC(a16 uint16) {
 // Ret returns from a subroutine. (Pop stack and jump to that address)
 func (c *CPU) Ret() {
 	// jump to address at top of stack
-	b, err := c.mem.Rw(c.SP)
-	if err != nil {
-		panic(err)
-	}
+	b := c.mem.Rw(c.SP)
 	c.PC = b
 	// pop stack (stack grows downwards)
 	c.SP += 2
@@ -182,10 +176,7 @@ func (c *CPU) Rst(n RstTarget) {
 		// Manually call to address -- c.Call() might
 		// restrict access to this rea of memory.
 		c.SP -= 2 // stack grows downward
-		err := c.mem.Ww(c.SP, c.PC)
-		if err != nil {
-			panic(err)
-		}
+		c.mem.Ww(c.SP, c.PC)
 		c.PC = uint16(n)
 
 	default:

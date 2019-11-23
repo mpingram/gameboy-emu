@@ -95,10 +95,7 @@ func TestCPU_Ld_r_valHL(t *testing.T) {
 
 			c.Registers = tt.regs
 			// initialize memory
-			err := c.mem.Wb(c.getHL(), tt.valHL)
-			if err != nil {
-				t.Error(err)
-			}
+			c.mem.Wb(c.getHL(), tt.valHL)
 
 			c.Ld_r_valHL(tt.args.r1)
 
@@ -136,10 +133,7 @@ func TestCPU_Ld_valHL_r(t *testing.T) {
 
 			// expect memory at HL to be value of src register
 			getr, _ := c.getReg8(tt.args.r)
-			valHL, err := c.mem.Rb(c.getHL())
-			if err != nil {
-				t.Error(err)
-			}
+			valHL := c.mem.Rb(c.getHL())
 			if getr() != valHL {
 				t.Errorf("Expected r1 to be %02x, got %02x", valHL, getr())
 			}
@@ -169,10 +163,7 @@ func TestCPU_Ld_valHL_d8(t *testing.T) {
 			c.Ld_valHL_d8(tt.args.d8)
 
 			// Expect (HL) to be d8
-			valHL, err := c.mem.Rb(c.getHL())
-			if err != nil {
-				t.Error(err)
-			}
+			valHL := c.mem.Rb(c.getHL())
 			if valHL != tt.args.d8 {
 				t.Errorf("Expected (HL) to be %02x, got %02x", tt.args.d8, valHL)
 			}
@@ -196,10 +187,7 @@ func TestCPU_Ld_A_valBC(t *testing.T) {
 
 			c.Registers = tt.regs
 			// initialize memory
-			err := c.mem.Wb(c.getBC(), tt.valBC)
-			if err != nil {
-				t.Error(err)
-			}
+			c.mem.Wb(c.getBC(), tt.valBC)
 
 			c.Ld_A_valBC()
 
@@ -227,10 +215,7 @@ func TestCPU_Ld_A_valDE(t *testing.T) {
 
 			c.Registers = tt.regs
 			// initialize memory
-			err := c.mem.Wb(c.getDE(), tt.valDE)
-			if err != nil {
-				t.Error(err)
-			}
+			c.mem.Wb(c.getDE(), tt.valDE)
 
 			c.Ld_A_valDE()
 
@@ -262,10 +247,7 @@ func TestCPU_Ld_A_valA16(t *testing.T) {
 
 			c.Registers = tt.regs
 			// initialize memory
-			err := c.mem.Wb(tt.args.a16, tt.valA16)
-			if err != nil {
-				t.Error(err)
-			}
+			c.mem.Wb(tt.args.a16, tt.valA16)
 
 			c.Ld_A_valA16(tt.args.a16)
 
@@ -295,10 +277,7 @@ func TestCPU_Ld_valBC_A(t *testing.T) {
 			c.Ld_valBC_A()
 
 			// Expect (BC) to be A
-			valBC, err := c.mem.Rb(c.getBC())
-			if err != nil {
-				t.Error(err)
-			}
+			valBC := c.mem.Rb(c.getBC())
 			if valBC != tt.regs.A {
 				t.Errorf("Expected (BC) to be %02x, got %02x", tt.regs.A, valBC)
 			}
@@ -324,10 +303,7 @@ func TestCPU_Ld_valDE_A(t *testing.T) {
 			c.Ld_valDE_A()
 
 			// Expect (DE) to be A
-			valDE, err := c.mem.Rb(c.getDE())
-			if err != nil {
-				t.Error(err)
-			}
+			valDE := c.mem.Rb(c.getDE())
 			if valDE != tt.regs.A {
 				t.Errorf("Expected (BC) to be %02x, got %02x", tt.regs.A, valDE)
 			}
@@ -357,10 +333,7 @@ func TestCPU_Ld_valA16_A(t *testing.T) {
 			c.Ld_valA16_A(tt.args.a16)
 
 			// Expect (a16) to be A
-			valA16, err := c.mem.Rb(tt.args.a16)
-			if err != nil {
-				t.Error(err)
-			}
+			valA16 := c.mem.Rb(tt.args.a16)
 			if valA16 != tt.regs.A {
 				t.Errorf("Expected (BC) to be %02x, got %02x", tt.regs.A, valA16)
 			}
@@ -389,10 +362,7 @@ func TestCPU_Ld_A_FF00_plus_a8(t *testing.T) {
 			c.Registers = tt.regs
 			// initialize memory
 			addr := 0xFF00 + uint16(tt.args.a8)
-			err := c.mem.Wb(addr, tt.valFF00plusA8)
-			if err != nil {
-				t.Error(err)
-			}
+			c.mem.Wb(addr, tt.valFF00plusA8)
 
 			c.Ld_A_FF00_plus_a8(tt.args.a8)
 
@@ -427,10 +397,7 @@ func TestCPU_Ld_FF00_plus_a8_A(t *testing.T) {
 
 			// Expect ($FF00 + a8) to be A
 			addr := 0xFF00 + uint16(tt.args.a8)
-			valFF00plusA8, err := c.mem.Rb(addr)
-			if err != nil {
-				t.Error(err)
-			}
+			valFF00plusA8 := c.mem.Rb(addr)
 			if valFF00plusA8 != tt.regs.A {
 				t.Errorf("Expected ($FF00+a8) to be %02x, got %02x", tt.regs.A, valFF00plusA8)
 			}
@@ -455,10 +422,7 @@ func TestCPU_Ld_A_FF00_plus_C(t *testing.T) {
 			c.Registers = tt.regs
 			// initialize memory
 			addr := 0xFF00 + uint16(tt.regs.C)
-			err := c.mem.Wb(addr, tt.valFF00plusC)
-			if err != nil {
-				t.Error(err)
-			}
+			c.mem.Wb(addr, tt.valFF00plusC)
 
 			c.Ld_A_FF00_plus_C()
 
@@ -489,10 +453,7 @@ func TestCPU_Ld_FF00_plus_C_A(t *testing.T) {
 
 			// Expect ($FF00 + C) to be A
 			addr := 0xFF00 + uint16(tt.regs.C)
-			valFF00plusC, err := c.mem.Rb(addr)
-			if err != nil {
-				t.Error(err)
-			}
+			valFF00plusC := c.mem.Rb(addr)
 			if valFF00plusC != tt.regs.A {
 				t.Errorf("Expected ($FF00+C) to be %02x, got %02x", tt.regs.A, valFF00plusC)
 			}
@@ -519,10 +480,7 @@ func TestCPU_Ld_valHLinc_A(t *testing.T) {
 
 			// Expect (oldHL) to be A
 			oldHL := uint16(tt.regs.H)<<8 | uint16(tt.regs.L)
-			valHL, err := c.mem.Rb(oldHL)
-			if err != nil {
-				t.Error(err)
-			}
+			valHL := c.mem.Rb(oldHL)
 			if valHL != tt.regs.A {
 				t.Errorf("Expected (HL) to be %02x, got %02x", tt.regs.A, valHL)
 			}
@@ -551,10 +509,7 @@ func TestCPU_Ld_A_valHLinc(t *testing.T) {
 
 			c.Registers = tt.regs
 			// initialize memory
-			err := c.mem.Wb(c.getHL(), tt.valHL)
-			if err != nil {
-				t.Error(err)
-			}
+			c.mem.Wb(c.getHL(), tt.valHL)
 
 			c.Ld_A_valHLinc()
 
@@ -590,10 +545,7 @@ func TestCPU_Ld_valHLdec_A(t *testing.T) {
 
 			// Expect (oldHL) to be A
 			oldHL := uint16(tt.regs.H)<<8 | uint16(tt.regs.L)
-			valHL, err := c.mem.Rb(oldHL)
-			if err != nil {
-				t.Error(err)
-			}
+			valHL := c.mem.Rb(oldHL)
 			if valHL != tt.regs.A {
 				t.Errorf("Expected (HL) to be %02x, got %02x", tt.regs.A, valHL)
 			}
@@ -622,10 +574,7 @@ func TestCPU_Ld_A_valHLdec(t *testing.T) {
 
 			c.Registers = tt.regs
 			// initialize memory
-			err := c.mem.Wb(c.getHL(), tt.valHL)
-			if err != nil {
-				t.Error(err)
-			}
+			c.mem.Wb(c.getHL(), tt.valHL)
 
 			c.Ld_A_valHLdec()
 
