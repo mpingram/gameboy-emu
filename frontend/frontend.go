@@ -8,39 +8,6 @@ import (
 
 // https://www.tutorialspoint.com/webgl/webgl_quick_guide.htm
 
-var (
-	width   int
-	height  int
-	gl      js.Value
-	glTypes GLTypes
-)
-
-type GLTypes struct {
-	staticDraw         js.Value
-	arrayBuffer        js.Value
-	elementArrayBuffer js.Value
-	vertexShader       js.Value
-	fragmentShader     js.Value
-	float              js.Value
-	depthTest          js.Value
-	colorBufferBit     js.Value
-	triangles          js.Value
-	unsignedShort      js.Value
-}
-
-func (types *GLTypes) New() {
-	types.staticDraw = gl.Get("STATIC_DRAW")
-	types.arrayBuffer = gl.Get("ARRAY_BUFFER")
-	types.elementArrayBuffer = gl.Get("ELEMENT_ARRAY_BUFFER")
-	types.vertexShader = gl.Get("VERTEX_SHADER")
-	types.fragmentShader = gl.Get("FRAGMENT_SHADER")
-	types.float = gl.Get("FLOAT")
-	types.depthTest = gl.Get("DEPTH_TEST")
-	types.colorBufferBit = gl.Get("COLOR_BUFFER_BIT")
-	types.triangles = gl.Get("TRIANGLES")
-	types.unsignedShort = gl.Get("UNSIGNED_SHORT")
-}
-
 func alert(val interface{}) {
 	js.Global().Call("alert", val)
 }
@@ -76,27 +43,37 @@ func toUint16Array(val interface{}) js.Value {
 	return uint16Array
 }
 
-func DrawTriangle() {
+type WebGLRenderer struct {
+	gl                js.Value
+	width, height     int
+	indices, vertices js.Value
+	shaderProgram     js.Value
+}
 
+func NewWebGLRenderer() *WebGLRenderer {
+	r := WebGLRenderer{}
+	r.initialize()
+	return &r
+}
+
+func (r *WebGLRenderer) initialize() {
 	// Init Canvas stuff
 	doc := js.Global().Get("document")
 	canvasEl := doc.Call("getElementById", "gocanvas")
-	width = doc.Get("body").Get("clientWidth").Int()
-	height = doc.Get("body").Get("clientHeight").Int()
-	canvasEl.Set("width", width)
-	canvasEl.Set("height", height)
+	r.width = doc.Get("body").Get("clientWidth").Int()
+	r.height = doc.Get("body").Get("clientHeight").Int()
+	canvasEl.Set("width", r.width)
+	canvasEl.Set("height", r.height)
 
-	gl = canvasEl.Call("getContext", "webgl")
-	if gl == js.Undefined() {
-		gl = canvasEl.Call("getContext", "experimental-webgl")
+	r.gl = canvasEl.Call("getContext", "webgl")
+	if r.gl == js.Undefined() {
+		r.gl = canvasEl.Call("getContext", "experimental-webgl")
 	}
 	// once again
-	if gl == js.Undefined() {
+	if r.gl == js.Undefined() {
 		js.Global().Call("alert", "browser might not support webgl")
 		return
 	}
-
-	glTypes.New()
 
 	//// VERTEX BUFFER ////
 
@@ -110,31 +87,27 @@ func DrawTriangle() {
 		0.5, 0.5, 0, 1, 1, // top right
 		0.5, -0.5, 0, 1, 0, // bottom right
 	}
-	vertices := toFloat32Array(verticesNative)
+	r.vertices = toFloat32Array(verticesNative)
 
 	indicesNative := []uint16{
 		0, 1, 3, // first triangle
 		0, 3, 2, // second triangle
 	}
-	indices := toUint16Array(indicesNative)
+	r.indices = toUint16Array(indicesNative)
 
 	// Create vertex buffer
-	vertexBuffer := gl.Call("createBuffer", glTypes.arrayBuffer)
+	vertexBuffer := r.gl.Call("createBuffer", r.gl.Get("ARRAY_BUFFER"))
 	// Bind to vertex buffer
-	gl.Call("bindBuffer", glTypes.arrayBuffer, vertexBuffer)
+	r.gl.Call("bindBuffer", r.gl.Get("ARRAY_BUFFER"), vertexBuffer)
 	// Pass vertices to vertex buffer
-	gl.Call("bufferData", glTypes.arrayBuffer, vertices, glTypes.staticDraw)
-	// Unbind vertex buffer
-	gl.Call("bindBuffer", glTypes.arrayBuffer, nil)
+	r.gl.Call("bufferData", r.gl.Get("ARRAY_BUFFER"), r.vertices, r.gl.Get("STATIC_DRAW"))
 
 	// Create index buffer
-	indexBuffer := gl.Call("createBuffer", glTypes.elementArrayBuffer)
+	indexBuffer := r.gl.Call("createBuffer", r.gl.Get("ELEMENT_ARRAY_BUFFER"))
 	// Bind to index buffer
-	gl.Call("bindBuffer", glTypes.elementArrayBuffer, indexBuffer)
+	r.gl.Call("bindBuffer", r.gl.Get("ELEMENT_ARRAY_BUFFER"), indexBuffer)
 	// Pass data to index buffer
-	gl.Call("bufferData", glTypes.elementArrayBuffer, indices, glTypes.staticDraw)
-	// Unbind index buffer
-	gl.Call("bindBuffer", glTypes.elementArrayBuffer, nil)
+	r.gl.Call("bufferData", r.gl.Get("ELEMENT_ARRAY_BUFFER"), r.indices, r.gl.Get("STATIC_DRAW"))
 
 	//// Shaders ////
 
@@ -151,11 +124,11 @@ func DrawTriangle() {
 	}`
 
 	// Create a vertex shader object
-	vertShader := gl.Call("createShader", glTypes.vertexShader)
+	vertShader := r.gl.Call("createShader", r.gl.Get("VERTEX_SHADER"))
 	// Attach vertex shader source code
-	gl.Call("shaderSource", vertShader, vertCode)
+	r.gl.Call("shaderSource", vertShader, vertCode)
 	// Compile the vertex shader
-	gl.Call("compileShader", vertShader)
+	r.gl.Call("compileShader", vertShader)
 
 	//fragment shader source code
 	fragCode := `
@@ -167,24 +140,24 @@ func DrawTriangle() {
 	}`
 
 	// Create fragment shader object
-	fragShader := gl.Call("createShader", glTypes.fragmentShader)
+	fragShader := r.gl.Call("createShader", r.gl.Get("FRAGMENT_SHADER"))
 
 	// Attach fragment shader source code
-	gl.Call("shaderSource", fragShader, fragCode)
+	r.gl.Call("shaderSource", fragShader, fragCode)
 	// Compile the fragmentt shader
-	gl.Call("compileShader", fragShader)
+	r.gl.Call("compileShader", fragShader)
 	// Create a shader program object to store
 	// the combined shader program
-	shaderProgram := gl.Call("createProgram")
+	r.shaderProgram = r.gl.Call("createProgram")
 
 	// Attach a vertex shader
-	gl.Call("attachShader", shaderProgram, vertShader)
+	r.gl.Call("attachShader", r.shaderProgram, vertShader)
 	// Attach a fragment shader
-	gl.Call("attachShader", shaderProgram, fragShader)
+	r.gl.Call("attachShader", r.shaderProgram, fragShader)
 	// Link both the programs
-	gl.Call("linkProgram", shaderProgram)
+	r.gl.Call("linkProgram", r.shaderProgram)
 	// Use the combined shader program object
-	gl.Call("useProgram", shaderProgram)
+	r.gl.Call("useProgram", r.shaderProgram)
 
 	//// Associating shaders to buffer objects ////
 	// Our vertices have two attributes in them: the spatial coordinates (xyz)
@@ -193,68 +166,114 @@ func DrawTriangle() {
 	// two attributes using `vertexAttribPointer`
 
 	// Bind vertex buffer object
-	gl.Call("bindBuffer", glTypes.arrayBuffer, vertexBuffer)
+	r.gl.Call("bindBuffer", r.gl.Get("ARRAY_BUFFER"), vertexBuffer)
 	// Bind index buffer object
-	gl.Call("bindBuffer", glTypes.elementArrayBuffer, indexBuffer)
+	r.gl.Call("bindBuffer", r.gl.Get("ELEMENT_ARRAY_BUFFER"), indexBuffer)
 	// Get the `position` attribute location
-	position := gl.Call("getAttribLocation", shaderProgram, "a_position")
+	position := r.gl.Call("getAttribLocation", r.shaderProgram, "a_position")
 	// Configure the `coordinates` attribute pointer
-	gl.Call(
+	r.gl.Call(
 		"vertexAttribPointer",
-		position,      // attribute location
-		3,             // number of elements in attribute
-		glTypes.float, // type
-		false,         // not normalized (clamp to [-1,1], not [0,1])
-		5*4,           // stride: number of bytes between different vertex data elements
-		0,             // offset of first element (in bytes)
+		position,          // attribute location
+		3,                 // number of elements in attribute
+		r.gl.Get("FLOAT"), // type
+		false,             // not normalized (clamp to [-1,1], not [0,1])
+		5*4,               // stride: number of bytes between different vertex data elements
+		0,                 // offset of first element (in bytes)
 	)
 	// Enable the `position` attribute
-	gl.Call("enableVertexAttribArray", position)
+	r.gl.Call("enableVertexAttribArray", position)
 
 	// Get the `texcoord` attribute
-	texcoord := gl.Call("getAttribLocation", shaderProgram, "a_texcoord")
+	texcoord := r.gl.Call("getAttribLocation", r.shaderProgram, "a_texcoord")
 	// Configure the `texcoord` attribute pointer
-	gl.Call(
+	r.gl.Call(
 		"vertexAttribPointer",
-		texcoord,      // attribute location
-		2,             // number of elements in attribute
-		glTypes.float, // type
-		false,         // not normalized (clamp to [-1,1], not [0,1])
-		5*4,           // stride: number of bytes between different vertex data elements
-		3*4,           // offset of first element (in bytes): it is 3 floats from the start
+		texcoord,          // attribute location
+		2,                 // number of elements in attribute
+		r.gl.Get("FLOAT"), // type
+		false,             // not normalized (clamp to [-1,1], not [0,1])
+		5*4,               // stride: number of bytes between different vertex data elements
+		3*4,               // offset of first element (in bytes): it is 3 floats from the start
 	)
 	// Enable the `position` attribute
-	gl.Call("enableVertexAttribArray", texcoord)
+	r.gl.Call("enableVertexAttribArray", texcoord)
 
 	//// Create a standby texture ////
-	texture := gl.Call("createTexture")
-	standbyTexturePixel := toUint8Array([]uint8{99, 200, 77})
-	gl.Call("bindTexture", gl.Get("TEXTURE_2D"), texture)
+	texture := r.gl.Call("createTexture")
+	standbyTextureNative := make([]uint8, 0)
+	for row := 0; row < 144; row++ {
+		for col := 0; col < 160; col++ {
+			standbyTextureNative = append(standbyTextureNative, 0, 0, 100)
+		}
+	}
+	standbyTexture := toUint8Array(standbyTextureNative)
+	r.gl.Call("bindTexture", r.gl.Get("TEXTURE_2D"), texture)
 	// NOTE -- WebGL 1.0 requires special treatment of textures that
 	// aren't powers of 2 (need to look into this more.) In any case,
 	// the GB screen texture (160x144) isn't a power of 2 in either dimension,
 	// so we'll need to do the special treatment thing no matter what.
-	gl.Call(
+	r.gl.Call(
 		"texImage2D",
-		gl.Get("TEXTURE_2D"),    // target
-		0,                       // level
-		gl.Get("RGB"),           // internal format
-		1,                       // width
-		1,                       // height
-		0,                       // border
-		gl.Get("RGB"),           // src format -- in WebGL 1, must be same as internal format
-		gl.Get("UNSIGNED_BYTE"), // 1 byte per color channel (RGB), 3 bytes per pixel
-		standbyTexturePixel,     // pixel data
+		r.gl.Get("TEXTURE_2D"),    // target
+		0,                         // level
+		r.gl.Get("RGB"),           // internal format
+		160,                       // width
+		144,                       // height
+		0,                         // border
+		r.gl.Get("RGB"),           // src format -- in WebGL 1, must be same as internal format
+		r.gl.Get("UNSIGNED_BYTE"), // 1 byte per color channel (RGB), 3 bytes per pixel
+		standbyTexture,            // pixel data
+	)
+
+	// turn off mipmapping, set wrapping to clamp to edge
+	r.gl.Call("texParameteri", r.gl.Get("TEXTURE_2D"), r.gl.Get("TEXTURE_WRAP_S"), r.gl.Get("CLAMP_TO_EDGE"))
+	r.gl.Call("texParameteri", r.gl.Get("TEXTURE_2D"), r.gl.Get("TEXTURE_WRAP_T"), r.gl.Get("CLAMP_TO_EDGE"))
+	r.gl.Call("texParameteri", r.gl.Get("TEXTURE_2D"), r.gl.Get("TEXTURE_MIN_FILTER"), r.gl.Get("LINEAR"))
+
+	//// Draw the screen ////
+	// Clear the canvas
+	r.gl.Call("clearColor", 0.5, 0.5, 0.5, 0.9)
+	r.gl.Call("clear", r.gl.Get("COLOR_BUFFER_BIT"))
+	// Enable the depth test
+	r.gl.Call("enable", r.gl.Get("DEPTH_TEST"))
+	// Set the view port
+	r.gl.Call("viewport", 0, 0, r.width, r.height)
+	// Draw the triangle
+	r.gl.Call("drawElements", r.gl.Get("TRIANGLES"), r.indices.Get("length"), r.gl.Get("UNSIGNED_SHORT"), 0)
+}
+
+func (r *WebGLRenderer) Render(screen []byte) {
+	// Clear the canvas
+	r.gl.Call("clearColor", 0.5, 0.5, 0.5, 0.9)
+	r.gl.Call("clear", r.gl.Get("COLOR_BUFFER_BIT"))
+
+	// Swap screen in as next texture
+	r.gl.Call(
+		"texSubImage2D",
+		r.gl.Get("TEXTURE_2D"),
+		0,                         // mipmap level 0
+		0,                         // x offset
+		0,                         // y offset
+		160,                       // width (texels)
+		144,                       // height (texels)
+		r.gl.Get("RGB"),           // format
+		r.gl.Get("UNSIGNED_BYTE"), // type,
+		toUint8Array(screen),      // texture data
 	)
 
 	//// Draw the screen ////
 	// Clear the canvas
-	gl.Call("clearColor", 0.5, 0.5, 0.5, 0.9)
-	gl.Call("clear", glTypes.colorBufferBit)
+	r.gl.Call("clearColor", 0.5, 0.5, 0.5, 0.9)
+	r.gl.Call("clear", r.gl.Get("COLOR_BUFFER_BIT"))
 	// Enable the depth test
-	gl.Call("enable", glTypes.depthTest)
-	// Set the view port
-	gl.Call("viewport", 0, 0, width, height)
+	r.gl.Call("enable", r.gl.Get("DEPTH_TEST"))
+	// Set the viewport
+	r.gl.Call("viewport", 0, 0, r.width, r.height)
+	/// use the shader program
+	r.gl.Call("useProgram", r.shaderProgram)
+
 	// Draw the triangle
-	gl.Call("drawElements", glTypes.triangles, indices.Get("length"), glTypes.unsignedShort, 0)
+	r.gl.Call("drawElements", r.gl.Get("TRIANGLES"), r.indices.Get("length"), r.gl.Get("UNSIGNED_SHORT"), 0)
+
 }
