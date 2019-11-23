@@ -1,8 +1,9 @@
 package main
 
 import (
-	_ "github.com/mpingram/gameboy-emu/cpu"
+	"github.com/mpingram/gameboy-emu/frontend"
 )
 
 func main() {
+	frontend.DrawTriangle()
 }
