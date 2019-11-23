@@ -103,24 +103,18 @@ func DrawTriangle() {
 	// The way we do this is by converting the floats to bytes
 	// and then calling js.CopyBytesToJS to get our typedArray.
 	verticesNative := []float32{
-		-0.5, 0.5, 0,
-		-0.5, -0.5, 0,
-		0.5, -0.5, 0,
+		-0.5, 0.5, 0, // top left
+		-0.5, -0.5, 0, // bottom left
+		0.5, 0.5, 0, // top right
+		0.5, -0.5, 0, // bottom right
 	}
 	vertices := toFloat32Array(verticesNative)
-	log("vertices")
-	log(vertices)
-	log("lenVertices (expected: 9):")
-	log(vertices.Get("length"))
 
 	indicesNative := []uint16{
-		0, 1, 2,
+		0, 1, 3, // first triangle
+		0, 3, 2, // second triangle
 	}
 	indices := toUint16Array(indicesNative)
-	log("indices")
-	log(indices)
-	log("lenIndices (expected: 3):")
-	log(indices.Get("length"))
 
 	// Create buffer
 	vertexBuffer := gl.Call("createBuffer", glTypes.arrayBuffer)
