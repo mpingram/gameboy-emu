@@ -6,6 +6,8 @@ import (
 	"syscall/js"
 )
 
+// https://www.tutorialspoint.com/webgl/webgl_quick_guide.htm
+
 var (
 	width   int
 	height  int
@@ -98,15 +100,15 @@ func DrawTriangle() {
 
 	//// VERTEX BUFFER ////
 
-	// We need to convert these native Golang floats to
-	// js typed arrays in order for webgl to consume them.
-	// The way we do this is by converting the floats to bytes
-	// and then calling js.CopyBytesToJS to get our typedArray.
+	// our vertices are organized
+	// with three spatial coordinates (xyz)
+	// and two texture coordinates (st)
 	verticesNative := []float32{
-		-0.5, 0.5, 0, // top left
-		-0.5, -0.5, 0, // bottom left
-		0.5, 0.5, 0, // top right
-		0.5, -0.5, 0, // bottom right
+		// x		y		z		s		t
+		-0.5, 0.5, 0, 0, 1, // top left
+		-0.5, -0.5, 0, 0, 0, // bottom left
+		0.5, 0.5, 0, 1, 1, // top right
+		0.5, -0.5, 0, 1, 0, // bottom right
 	}
 	vertices := toFloat32Array(verticesNative)
 
@@ -116,55 +118,52 @@ func DrawTriangle() {
 	}
 	indices := toUint16Array(indicesNative)
 
-	// Create buffer
+	// Create vertex buffer
 	vertexBuffer := gl.Call("createBuffer", glTypes.arrayBuffer)
-
-	// Bind to buffer
+	// Bind to vertex buffer
 	gl.Call("bindBuffer", glTypes.arrayBuffer, vertexBuffer)
-
-	// Pass data to buffer
+	// Pass vertices to vertex buffer
 	gl.Call("bufferData", glTypes.arrayBuffer, vertices, glTypes.staticDraw)
-
-	// Unbind buffer
+	// Unbind vertex buffer
 	gl.Call("bindBuffer", glTypes.arrayBuffer, nil)
 
-	//// INDEX BUFFER ////
-
-	// Create buffer
+	// Create index buffer
 	indexBuffer := gl.Call("createBuffer", glTypes.elementArrayBuffer)
-
-	// Bind to buffer
+	// Bind to index buffer
 	gl.Call("bindBuffer", glTypes.elementArrayBuffer, indexBuffer)
-
-	// Pass data to buffer
+	// Pass data to index buffer
 	gl.Call("bufferData", glTypes.elementArrayBuffer, indices, glTypes.staticDraw)
-
-	// Unbind buffer
+	// Unbind index buffer
 	gl.Call("bindBuffer", glTypes.elementArrayBuffer, nil)
 
 	//// Shaders ////
 
 	// Vertex shader source code
 	vertCode := `
-	attribute vec3 coordinates;
+	attribute vec3 a_position;
+	attribute vec2 a_texcoord;
+
+	varying vec2 v_texcoord;
 		
-	void main(void) {
-		gl_Position = vec4(coordinates, 1.0);
+	void main() {
+		gl_Position = vec4(a_position, 1.0);
+		v_texcoord = a_texcoord;
 	}`
 
 	// Create a vertex shader object
 	vertShader := gl.Call("createShader", glTypes.vertexShader)
-
 	// Attach vertex shader source code
 	gl.Call("shaderSource", vertShader, vertCode)
-
 	// Compile the vertex shader
 	gl.Call("compileShader", vertShader)
 
 	//fragment shader source code
 	fragCode := `
-	void main(void) {
-		gl_FragColor = vec4(0.0, 0.0, 0.0, 0.1);
+	varying highp vec2 v_texcoord;
+	uniform sampler2D u_texture;
+
+	void main() {
+		gl_FragColor = texture2D(u_texture, v_texcoord);
 	}`
 
 	// Create fragment shader object
@@ -172,55 +171,70 @@ func DrawTriangle() {
 
 	// Attach fragment shader source code
 	gl.Call("shaderSource", fragShader, fragCode)
-
 	// Compile the fragmentt shader
 	gl.Call("compileShader", fragShader)
-
 	// Create a shader program object to store
 	// the combined shader program
 	shaderProgram := gl.Call("createProgram")
 
 	// Attach a vertex shader
 	gl.Call("attachShader", shaderProgram, vertShader)
-
 	// Attach a fragment shader
 	gl.Call("attachShader", shaderProgram, fragShader)
-
 	// Link both the programs
 	gl.Call("linkProgram", shaderProgram)
-
 	// Use the combined shader program object
 	gl.Call("useProgram", shaderProgram)
 
 	//// Associating shaders to buffer objects ////
+	// Our vertices have two attributes in them: the spatial coordinates (xyz)
+	// and the texture coordinates (st). Both of these attributes are packed into
+	// the same vertex buffer, so we need to tell openGL how to find these
+	// two attributes using `vertexAttribPointer`
 
 	// Bind vertex buffer object
 	gl.Call("bindBuffer", glTypes.arrayBuffer, vertexBuffer)
-
 	// Bind index buffer object
 	gl.Call("bindBuffer", glTypes.elementArrayBuffer, indexBuffer)
+	// Get the `position` attribute location
+	position := gl.Call("getAttribLocation", shaderProgram, "a_position")
+	// Configure the `coordinates` attribute pointer
+	gl.Call(
+		"vertexAttribPointer",
+		position,      // attribute location
+		3,             // number of elements in attribute
+		glTypes.float, // type
+		false,         // not normalized (clamp to [-1,1], not [0,1])
+		5*4,           // stride: number of bytes between different vertex data elements
+		0,             // offset of first element (in bytes)
+	)
+	// Enable the `position` attribute
+	gl.Call("enableVertexAttribArray", position)
 
-	// Get the attribute location
-	coord := gl.Call("getAttribLocation", shaderProgram, "coordinates")
-
-	// Point an attribute to the currently bound VBO
-	gl.Call("vertexAttribPointer", coord, 3, glTypes.float, false, 0, 0)
-
-	// Enable the attribute
-	gl.Call("enableVertexAttribArray", coord)
+	// Get the `texcoord` attribute
+	texcoord := gl.Call("getAttribLocation", shaderProgram, "a_texcoord")
+	// Configure the `texcoord` attribute pointer
+	gl.Call(
+		"vertexAttribPointer",
+		texcoord,      // attribute location
+		2,             // number of elements in attribute
+		glTypes.float, // type
+		false,         // not normalized (clamp to [-1,1], not [0,1])
+		5*4,           // stride: number of bytes between different vertex data elements
+		3*4,           // offset of first element (in bytes): it is 3 floats from the start
+	)
+	// Enable the `position` attribute
+	gl.Call("enableVertexAttribArray", texcoord)
 
 	//// Drawing the triangle ////
 
 	// Clear the canvas
 	gl.Call("clearColor", 0.5, 0.5, 0.5, 0.9)
 	gl.Call("clear", glTypes.colorBufferBit)
-
 	// Enable the depth test
 	gl.Call("enable", glTypes.depthTest)
-
 	// Set the view port
 	gl.Call("viewport", 0, 0, width, height)
-
 	// Draw the triangle
 	gl.Call("drawElements", glTypes.triangles, indices.Get("length"), glTypes.unsignedShort, 0)
 }
