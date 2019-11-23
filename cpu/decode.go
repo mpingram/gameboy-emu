@@ -15,7 +15,7 @@ type Opcode struct {
 	mnemonic     string
 	length       uint16
 	cycles       int
-	cyclesIfNoop int
+	cyclesIfNoop int // Some conditional instructions, eg JR NZ, take different amounts of time depending on if the condition is executed or not
 	flags        Flags
 }
 
@@ -37,7 +37,7 @@ func (i *Instruction) String() string {
 	return i.opc.mnemonic
 }
 
-func Decode(addr uint16, mem mmu.MemoryReader) (Instruction, error) {
+func Decode(addr uint16, mem mmu.MemoryReader) Instruction {
 
 	// FIXME: EDGE CASE: 'HALT' opcode may be 1 or 2 bytes long. Officially,
 	// it's supposed to be 0x01 0x00 (which looks like HALT, NOP), so some
@@ -51,7 +51,7 @@ func Decode(addr uint16, mem mmu.MemoryReader) (Instruction, error) {
 	// =======================
 	firstByte, err := mem.Rb(addr)
 	if err != nil {
-		return Instruction{}, err
+		panic(err)
 	}
 	// 0xCB is a special 'prefix' opcode. If it is present, the next
 	// byte represents an opcode in the CB prefix table.
@@ -61,7 +61,7 @@ func Decode(addr uint16, mem mmu.MemoryReader) (Instruction, error) {
 	if isPrefixed {
 		secondByte, err := mem.Rb(addr + 1)
 		if err != nil {
-			return Instruction{}, err
+			panic(err)
 		}
 		val := OpcodeValue(secondByte)
 		// look up opcode in opcode value table for cb-prefixed opcodes
@@ -90,7 +90,7 @@ func Decode(addr uint16, mem mmu.MemoryReader) (Instruction, error) {
 			data = make([]byte, 1)
 			argByte, err := mem.Rb(addr + 1)
 			if err != nil {
-				return Instruction{}, err
+				panic(err)
 			}
 			data[0] = argByte
 
@@ -100,7 +100,7 @@ func Decode(addr uint16, mem mmu.MemoryReader) (Instruction, error) {
 			argByte1, err := mem.Rb(addr + 1)
 			argByte2, err := mem.Rb(addr + 2)
 			if err != nil {
-				return Instruction{}, err
+				panic(err)
 			}
 			data[0] = argByte1
 			data[1] = argByte2
@@ -110,6 +110,6 @@ func Decode(addr uint16, mem mmu.MemoryReader) (Instruction, error) {
 	// =======================
 	// Wrap our opcode in an Instruction, including the extra data.
 	// =======================
-	return Instruction{opc, data}, nil
+	return Instruction{opc, data}
 
 }

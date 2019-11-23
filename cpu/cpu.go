@@ -19,12 +19,42 @@ type CPU struct {
 
 	mem mmu.MemoryReadWriter
 
-	halted  bool
-	stopped bool
+	halted  bool // set by call to HALT: when halted, CPU is still `running`
+	stopped bool // set after first call to Start()
 
 	ime    bool // Interrupt master enable
 	setIME bool // set IME next instruction (used for Ei() command)
 
+	breakpoint byte
+}
+
+func (c *CPU) SetBreakpoint(pc byte) {
+	c.breakpoint = pc
+}
+
+func (c *CPU) IsRunning() bool {
+	return !c.stopped
+}
+
+// Run begins operation of the CPU. It only has
+// effect if the CPU is currently in `stopped` state.
+func (c *CPU) Run() {
+	// has no effect if CPU is already running
+	if c.IsRunning() {
+		return
+	}
+
+	for c.IsRunning() {
+		// Decode and execute one instruction
+		instr := Decode(c.PC, c.mem)
+		didJump := c.Execute(instr)
+		// increment the PC by the instruction size, IF the instruction
+		// didn't already jump the pc
+		if !didJump {
+			c.PC += instr.opc.length
+		}
+
+	}
 }
 
 /**

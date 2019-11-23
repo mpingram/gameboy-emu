@@ -5,7 +5,7 @@ import (
 )
 
 // Execute executes a Sharp LR3502 instruction.
-func (c *CPU) Execute(i Instruction) error {
+func (c *CPU) Execute(i Instruction) {
 
 	if !i.opc.prefixCB {
 		// unprefixed opcodes
@@ -40,7 +40,7 @@ func (c *CPU) Execute(i Instruction) error {
 		case RLA:
 			c.Rl_A()
 		case JR_r8:
-			c.Jr(r8(i.data))
+			return c.Jr(r8(i.data))
 		case ADD_HL_DE:
 			c.Add_HL_rr(RegDE)
 		case LD_A_valDE:
@@ -57,7 +57,7 @@ func (c *CPU) Execute(i Instruction) error {
 			c.Rr_A()
 
 		case JR_NZ_r8:
-			c.JrNZ(r8(i.data))
+			return c.JrNZ(r8(i.data))
 		case LD_HL_d16:
 			c.Ld_rr_d16(RegHL, d16(i.data))
 		case LD_valHLinc_A:
@@ -73,7 +73,7 @@ func (c *CPU) Execute(i Instruction) error {
 		case DAA:
 			c.Daa()
 		case JR_Z_r8:
-			c.JrZ(r8(i.data))
+			return c.JrZ(r8(i.data))
 		case ADD_HL_HL:
 			c.Add_HL_rr(RegHL)
 		case LD_A_valHLinc:
@@ -90,7 +90,7 @@ func (c *CPU) Execute(i Instruction) error {
 			c.Cpl()
 
 		case JR_NC_r8:
-			c.JrNC(r8(i.data))
+			return c.JrNC(r8(i.data))
 		case LD_SP_d16:
 			c.Ld_SP_d16(d16(i.data))
 		case LD_valHLdec_A:
@@ -106,7 +106,7 @@ func (c *CPU) Execute(i Instruction) error {
 		case SCF:
 			c.Scf()
 		case JR_C_r8:
-			c.JrC(r8(i.data))
+			return c.JrC(r8(i.data))
 		case ADD_HL_SP:
 			c.Add_HL_SP()
 		case LD_A_valHLdec:
@@ -395,65 +395,65 @@ func (c *CPU) Execute(i Instruction) error {
 		case INC_C:
 			c.Inc_r(RegC)
 		case RET_NZ:
-			c.RetNZ()
+			return c.RetNZ()
 		case POP_BC:
 			c.Pop_rr(RegBC)
 		case JP_NZ_a16:
-			c.JpNZ(a16(i.data))
+			return c.JpNZ(a16(i.data))
 		case JP_a16:
-			c.Jp(a16(i.data))
+			return c.Jp(a16(i.data))
 		case CALL_NZ_a16:
-			c.CallZ(a16(i.data))
+			return c.CallZ(a16(i.data))
 		case PUSH_BC:
 			c.Push_rr(RegBC)
 		case ADD_A_d8:
 			c.Add_d8(d8(i.data))
 		case RST_00H:
-			c.Rst(0x00)
+			return c.Rst(0x00)
 		case RET_Z:
-			c.RetZ()
+			return c.RetZ()
 		case RET:
-			c.Ret()
+			return c.Ret()
 		case JP_Z_a16:
-			c.JpZ(a16(i.data))
+			return c.JpZ(a16(i.data))
 		// case PREFIX_CB:
 		// This should never happen
 		case CALL_Z_a16:
-			c.CallZ(a16(i.data))
+			return c.CallZ(a16(i.data))
 		case CALL_a16:
-			c.Call(a16(i.data))
+			return c.Call(a16(i.data))
 		case ADC_A_d8:
 			c.Adc_d8(d8(i.data))
 		case RST_08H:
-			c.Rst(0x08)
+			return c.Rst(0x08)
 		case DEC_C:
 			c.Dec_r(RegC)
 		case RET_NC:
-			c.RetNC()
+			return c.RetNC()
 		case POP_DE:
 			c.Pop_rr(RegDE)
 		case JP_NC_a16:
-			c.JpNC(a16(i.data))
+			return c.JpNC(a16(i.data))
 		case CALL_NC_a16:
-			c.CallNC(a16(i.data))
+			return c.CallNC(a16(i.data))
 		case PUSH_DE:
 			c.Push_rr(RegDE)
 		case SUB_d8:
 			c.Sub_d8(d8(i.data))
 		case RST_10H:
-			c.Rst(0x10)
+			return c.Rst(0x10)
 		case RET_C:
-			c.RetC()
+			return c.RetC()
 		case RETI:
-			c.Reti()
+			return c.Reti()
 		case JP_C_a16:
-			c.JpC(a16(i.data))
+			return c.JpC(a16(i.data))
 		case CALL_C_a16:
-			c.CallC(a16(i.data))
+			return c.CallC(a16(i.data))
 		case SBC_A_d8:
 			c.Sbc_d8(d8(i.data))
 		case RST_18H:
-			c.Rst(0x18)
+			return c.Rst(0x18)
 		case LD_C_d8:
 			c.Ld_r_d8(RegC, d8(i.data))
 		case LDH_vala8_A:
@@ -467,17 +467,17 @@ func (c *CPU) Execute(i Instruction) error {
 		case AND_d8:
 			c.And_d8(d8(i.data))
 		case RST_20H:
-			c.Rst(0x20)
+			return c.Rst(0x20)
 		case ADD_SP_r8:
 			c.Add_SP_r8(r8(i.data))
 		case JP_valHL:
-			c.Jp_HL()
+			return c.Jp_HL()
 		case LD_vala16_A:
 			c.Ld_valA16_A(a16(i.data))
 		case XOR_d8:
 			c.Xor_d8(d8(i.data))
 		case RST_28H:
-			c.Rst(0x28)
+			return c.Rst(0x28)
 		case RRCA:
 			c.Rrc_A()
 		case LDH_A_vala8: // FIXME bad mnemonic
@@ -493,7 +493,7 @@ func (c *CPU) Execute(i Instruction) error {
 		case OR_d8:
 			c.Or_d8(d8(i.data))
 		case RST_30H:
-			c.Rst(0x30)
+			return c.Rst(0x30)
 		case LD_HL_SPincr8:
 			c.Ld_HL_SPplusr8(r8(i.data))
 		case LD_SP_HL:
@@ -505,9 +505,9 @@ func (c *CPU) Execute(i Instruction) error {
 		case CP_d8:
 			c.Cp_d8(d8(i.data))
 		case RST_38H:
-			c.Rst(0x38)
+			return c.Rst(0x38)
 		default:
-			return fmt.Errorf("No match for opcode %v", i.opc.val)
+			panic(fmt.Sprintf("No match for opcode %v", i.opc.val))
 		}
 
 	} else {
@@ -1055,10 +1055,9 @@ func (c *CPU) Execute(i Instruction) error {
 			c.Set_n_r(7, RegA)
 
 		default:
-			return fmt.Errorf("No match for opcode %v", i.opc.val)
+			panic(fmt.Sprintf("No match for opcode %v", i.opc.val))
 		}
 	}
-	return nil
 }
 
 func d16(data []byte) uint16 {
