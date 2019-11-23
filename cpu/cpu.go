@@ -3,57 +3,82 @@ package cpu
 import (
 	"fmt"
 	"github.com/mpingram/gameboy-emu/mmu"
+	"time"
 )
 
 // New initializes and returns an instance of CPU.
 func New(mmu *mmu.MMU) *CPU {
 	cpu := &CPU{mem: mmu.CPUInterface}
+	// DEBUG this is an exceptionally slow clock
+	cpu.Clock = time.NewTicker(time.Millisecond).C
+	cpu.readyForStart = true
 	return cpu
 }
 
 type CPU struct {
 	Registers
 
-	TClock <-chan int
-	MClock <-chan int
+	Clock <-chan time.Time
+	//TClock <-chan int
+	//MClock <-chan int
 
 	mem mmu.MemoryReadWriter
 
 	halted  bool // set by call to HALT: when halted, CPU is still `running`
-	stopped bool // set after first call to Start()
+	stopped bool // set by call to STOP
+
+	readyForStart bool // meta-status set after first call to Start()
 
 	ime    bool // Interrupt master enable
 	setIME bool // set IME next instruction (used for Ei() command)
 
-	breakpoint byte
+	breakpoint uint16
 }
 
-func (c *CPU) SetBreakpoint(pc byte) {
+func (c *CPU) SetBreakpoint(pc uint16) {
 	c.breakpoint = pc
-}
-
-func (c *CPU) IsRunning() bool {
-	return !c.stopped
 }
 
 // Run begins operation of the CPU. It only has
 // effect if the CPU is currently in `stopped` state.
 func (c *CPU) Run() {
-	// has no effect if CPU is already running
-	if c.IsRunning() {
+	if !c.readyForStart {
+		fmt.Printf("cpu.Start called before it was ready!")
 		return
 	}
 
-	for c.IsRunning() {
-		// Decode and execute one instruction
-		instr := Decode(c.PC, c.mem)
-		didJump := c.Execute(instr)
-		// increment the PC by the instruction size, IF the instruction
-		// didn't already jump the pc
-		if !didJump {
-			c.PC += instr.opc.length
+	for {
+		if c.PC == c.breakpoint {
+			break
 		}
 
+		// Decode and execute one instruction
+		instr := Decode(c.PC, c.mem)
+
+		// DEBUG: print instruction mnemonic
+		fmt.Printf("($%04x)\t%s\n", c.PC, instr.opc.mnemonic)
+		c.Execute(instr)
+
+		orig_pc := c.PC
+		// Increment the PC by the instruction size, IF the instruction
+		// didn't already jump the pc.
+		didNotJump := c.PC == orig_pc
+		cycles := instr.opc.cycles
+		if didNotJump {
+			c.PC += instr.opc.length
+			// If an instruction has a nonzero instr.opc.cyclesNoop,
+			// this represents the number of cycles taken when a branching
+			// instruction did not jump. Therefore, we use it instead.
+			if instr.opc.cyclesIfNoop > 0 {
+				cycles = instr.opc.cyclesIfNoop
+			}
+		}
+
+		// Wait for the correct number of clock ticks.
+		ticks := cycles * 4 // Each cpu cycle == 4 clock ticks.
+		for i := 0; i < ticks; i++ {
+			<-c.Clock
+		}
 	}
 }
 
