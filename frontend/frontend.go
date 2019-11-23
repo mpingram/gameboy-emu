@@ -226,8 +226,28 @@ func DrawTriangle() {
 	// Enable the `position` attribute
 	gl.Call("enableVertexAttribArray", texcoord)
 
-	//// Drawing the triangle ////
+	//// Create a standby texture ////
+	texture := gl.Call("createTexture")
+	standbyTexturePixel := toUint8Array([]uint8{99, 200, 77})
+	gl.Call("bindTexture", gl.Get("TEXTURE_2D"), texture)
+	// NOTE -- WebGL 1.0 requires special treatment of textures that
+	// aren't powers of 2 (need to look into this more.) In any case,
+	// the GB screen texture (160x144) isn't a power of 2 in either dimension,
+	// so we'll need to do the special treatment thing no matter what.
+	gl.Call(
+		"texImage2D",
+		gl.Get("TEXTURE_2D"),    // target
+		0,                       // level
+		gl.Get("RGB"),           // internal format
+		1,                       // width
+		1,                       // height
+		0,                       // border
+		gl.Get("RGB"),           // src format -- in WebGL 1, must be same as internal format
+		gl.Get("UNSIGNED_BYTE"), // 1 byte per color channel (RGB), 3 bytes per pixel
+		standbyTexturePixel,     // pixel data
+	)
 
+	//// Draw the screen ////
 	// Clear the canvas
 	gl.Call("clearColor", 0.5, 0.5, 0.5, 0.9)
 	gl.Call("clear", glTypes.colorBufferBit)
