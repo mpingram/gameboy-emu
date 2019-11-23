@@ -44,10 +44,13 @@ func toUint16Array(val interface{}) js.Value {
 }
 
 type WebGLRenderer struct {
-	gl                js.Value
-	width, height     int
-	indices, vertices js.Value
-	shaderProgram     js.Value
+	gl                        js.Value
+	width, height             int
+	indices, vertices         js.Value
+	indexBuffer, vertexBuffer js.Value
+	position, texcoord        js.Value
+	shaderProgram             js.Value
+	texture                   js.Value
 }
 
 func NewWebGLRenderer() *WebGLRenderer {
@@ -96,16 +99,16 @@ func (r *WebGLRenderer) initialize() {
 	r.indices = toUint16Array(indicesNative)
 
 	// Create vertex buffer
-	vertexBuffer := r.gl.Call("createBuffer", r.gl.Get("ARRAY_BUFFER"))
+	r.vertexBuffer = r.gl.Call("createBuffer", r.gl.Get("ARRAY_BUFFER"))
 	// Bind to vertex buffer
-	r.gl.Call("bindBuffer", r.gl.Get("ARRAY_BUFFER"), vertexBuffer)
+	r.gl.Call("bindBuffer", r.gl.Get("ARRAY_BUFFER"), r.vertexBuffer)
 	// Pass vertices to vertex buffer
 	r.gl.Call("bufferData", r.gl.Get("ARRAY_BUFFER"), r.vertices, r.gl.Get("STATIC_DRAW"))
 
 	// Create index buffer
-	indexBuffer := r.gl.Call("createBuffer", r.gl.Get("ELEMENT_ARRAY_BUFFER"))
+	r.indexBuffer = r.gl.Call("createBuffer", r.gl.Get("ELEMENT_ARRAY_BUFFER"))
 	// Bind to index buffer
-	r.gl.Call("bindBuffer", r.gl.Get("ELEMENT_ARRAY_BUFFER"), indexBuffer)
+	r.gl.Call("bindBuffer", r.gl.Get("ELEMENT_ARRAY_BUFFER"), r.indexBuffer)
 	// Pass data to index buffer
 	r.gl.Call("bufferData", r.gl.Get("ELEMENT_ARRAY_BUFFER"), r.indices, r.gl.Get("STATIC_DRAW"))
 
@@ -166,15 +169,15 @@ func (r *WebGLRenderer) initialize() {
 	// two attributes using `vertexAttribPointer`
 
 	// Bind vertex buffer object
-	r.gl.Call("bindBuffer", r.gl.Get("ARRAY_BUFFER"), vertexBuffer)
+	r.gl.Call("bindBuffer", r.gl.Get("ARRAY_BUFFER"), r.vertexBuffer)
 	// Bind index buffer object
-	r.gl.Call("bindBuffer", r.gl.Get("ELEMENT_ARRAY_BUFFER"), indexBuffer)
+	r.gl.Call("bindBuffer", r.gl.Get("ELEMENT_ARRAY_BUFFER"), r.indexBuffer)
 	// Get the `position` attribute location
-	position := r.gl.Call("getAttribLocation", r.shaderProgram, "a_position")
+	r.position = r.gl.Call("getAttribLocation", r.shaderProgram, "a_position")
 	// Configure the `coordinates` attribute pointer
 	r.gl.Call(
 		"vertexAttribPointer",
-		position,          // attribute location
+		r.position,        // attribute location
 		3,                 // number of elements in attribute
 		r.gl.Get("FLOAT"), // type
 		false,             // not normalized (clamp to [-1,1], not [0,1])
@@ -182,25 +185,25 @@ func (r *WebGLRenderer) initialize() {
 		0,                 // offset of first element (in bytes)
 	)
 	// Enable the `position` attribute
-	r.gl.Call("enableVertexAttribArray", position)
+	r.gl.Call("enableVertexAttribArray", r.position)
 
 	// Get the `texcoord` attribute
-	texcoord := r.gl.Call("getAttribLocation", r.shaderProgram, "a_texcoord")
+	r.texcoord = r.gl.Call("getAttribLocation", r.shaderProgram, "a_texcoord")
 	// Configure the `texcoord` attribute pointer
 	r.gl.Call(
 		"vertexAttribPointer",
-		texcoord,          // attribute location
+		r.texcoord,        // attribute location
 		2,                 // number of elements in attribute
 		r.gl.Get("FLOAT"), // type
 		false,             // not normalized (clamp to [-1,1], not [0,1])
 		5*4,               // stride: number of bytes between different vertex data elements
 		3*4,               // offset of first element (in bytes): it is 3 floats from the start
 	)
-	// Enable the `position` attribute
-	r.gl.Call("enableVertexAttribArray", texcoord)
+	// Enable the `texcoord` attribute
+	r.gl.Call("enableVertexAttribArray", r.texcoord)
 
-	//// Create a standby texture ////
-	texture := r.gl.Call("createTexture")
+	//// Create a screen texture ////
+	r.texture = r.gl.Call("createTexture")
 	standbyTextureNative := make([]uint8, 0)
 	for row := 0; row < 144; row++ {
 		for col := 0; col < 160; col++ {
@@ -208,7 +211,7 @@ func (r *WebGLRenderer) initialize() {
 		}
 	}
 	standbyTexture := toUint8Array(standbyTextureNative)
-	r.gl.Call("bindTexture", r.gl.Get("TEXTURE_2D"), texture)
+	r.gl.Call("bindTexture", r.gl.Get("TEXTURE_2D"), r.texture)
 	// NOTE -- WebGL 1.0 requires special treatment of textures that
 	// aren't powers of 2 (need to look into this more.) In any case,
 	// the GB screen texture (160x144) isn't a power of 2 in either dimension,
@@ -244,9 +247,23 @@ func (r *WebGLRenderer) initialize() {
 }
 
 func (r *WebGLRenderer) Render(screen []byte) {
+
 	// Clear the canvas
 	r.gl.Call("clearColor", 0.5, 0.5, 0.5, 0.9)
 	r.gl.Call("clear", r.gl.Get("COLOR_BUFFER_BIT"))
+	r.gl.Call("clear", r.gl.Get("DEPTH_BUFFER_BIT"))
+
+	r.gl.Call("activeTexture", r.gl.Get("TEXTURE0"))
+	r.gl.Call(
+		"bindTexture",
+		r.gl.Get("TEXTURE_2D"),
+		r.texture,
+	)
+
+	// Enable the `position` attribute
+	r.gl.Call("enableVertexAttribArray", r.position)
+	// Enable the `texcoord` attribute
+	r.gl.Call("enableVertexAttribArray", r.texcoord)
 
 	// Swap screen in as next texture
 	r.gl.Call(
@@ -263,15 +280,17 @@ func (r *WebGLRenderer) Render(screen []byte) {
 	)
 
 	//// Draw the screen ////
-	// Clear the canvas
-	r.gl.Call("clearColor", 0.5, 0.5, 0.5, 0.9)
-	r.gl.Call("clear", r.gl.Get("COLOR_BUFFER_BIT"))
 	// Enable the depth test
 	r.gl.Call("enable", r.gl.Get("DEPTH_TEST"))
 	// Set the viewport
 	r.gl.Call("viewport", 0, 0, r.width, r.height)
 	/// use the shader program
 	r.gl.Call("useProgram", r.shaderProgram)
+
+	// Bind vertex buffer object
+	r.gl.Call("bindBuffer", r.gl.Get("ARRAY_BUFFER"), r.vertexBuffer)
+	// Bind index buffer object
+	r.gl.Call("bindBuffer", r.gl.Get("ELEMENT_ARRAY_BUFFER"), r.indexBuffer)
 
 	// Draw the triangle
 	r.gl.Call("drawElements", r.gl.Get("TRIANGLES"), r.indices.Get("length"), r.gl.Get("UNSIGNED_SHORT"), 0)

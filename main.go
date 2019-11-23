@@ -8,9 +8,12 @@ func main() {
 	renderer := frontend.NewWebGLRenderer()
 	fakeScreen := make([]byte, 0)
 
+	var red, green, blue byte
 	for row := 0; row < 144; row++ {
+		red++
 		for col := 0; col < 160; col++ {
-			fakeScreen = append(fakeScreen, 255, 0, 0)
+			green++
+			fakeScreen = append(fakeScreen, red, green, blue)
 		}
 	}
 
