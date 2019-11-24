@@ -704,39 +704,198 @@ func TestCPU_Srl_valHL(t *testing.T) {
 
 func TestCPU_Bit_n_r(t *testing.T) {
 	type args struct {
-		n uint8
+		n byte
 		r Reg8
+	}
+	tests := []struct {
+		name string
+		args
+		regIn    byte
+		flagsIn  flags
+		flagsOut flags
+	}{
+		{"Bit 0 is set: Z=0", args{0, RegA}, 0b1101_1001, flags{1, 1, 1, 1}, flags{0, 0, 1, 1}},
+		{"Bit 0 unset: Z=1", args{0, RegA}, 0b1001_0100, flags{1, 0, 1, 0}, flags{1, 0, 1, 0}},
+		{"Bit 7 is set: Z=0", args{7, RegA}, 0b1001_1000, flags{0, 1, 0, 1}, flags{0, 0, 1, 1}},
+		{"Bit 7 unset: Z=1", args{7, RegA}, 0b0001_0100, flags{0, 0, 0, 0}, flags{1, 0, 1, 0}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c, _ := testSetup()
+			_, setr := c.getReg8(tt.args.r)
+			setr(tt.regIn)
+			setFlags(c, tt.flagsIn)
+
+			c.Bit_n_r(tt.args.n, tt.args.r)
+
+			checkFlags(c, tt.flagsOut, t)
+		})
 	}
 }
 
 func TestCPU_Bit_n_valHL(t *testing.T) {
 	type args struct {
-		n uint8
+		n byte
+	}
+	tests := []struct {
+		name string
+		args
+		Registers
+		valHLIn  byte
+		flagsIn  flags
+		flagsOut flags
+	}{
+		{"Bit 0 is set: Z=0", args{0}, Registers{H: 0x10, L: 0x10}, 0b1101_1001, flags{1, 1, 1, 1}, flags{0, 0, 1, 1}},
+		{"Bit 0 unset: Z=1", args{0}, Registers{H: 0x10, L: 0x10}, 0b1001_0100, flags{1, 0, 1, 0}, flags{1, 0, 1, 0}},
+		{"Bit 7 is set: Z=0", args{7}, Registers{H: 0x10, L: 0x10}, 0b1001_1000, flags{0, 1, 0, 1}, flags{0, 0, 1, 1}},
+		{"Bit 7 unset: Z=1", args{7}, Registers{H: 0x10, L: 0x10}, 0b0001_0100, flags{0, 0, 0, 0}, flags{1, 0, 1, 0}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c, _ := testSetup()
+			c.mem.Wb(c.getHL(), tt.valHLIn)
+			setFlags(c, tt.flagsIn)
+
+			c.Bit_n_valHL(tt.args.n)
+
+			checkFlags(c, tt.flagsOut, t)
+		})
 	}
 }
 
 func TestCPU_Set_n_r(t *testing.T) {
 	type args struct {
-		n uint8
+		n byte
 		r Reg8
+	}
+	tests := []struct {
+		name string
+		args
+		regIn    byte
+		regOut   byte
+		flagsIn  flags
+		flagsOut flags
+	}{
+		{"Set bit 0", args{0, RegA}, 0b1101_1001, 0b1101_1001, flags{0, 1, 0, 1}, flags{0, 1, 0, 1}},
+		{"Set bit 2", args{2, RegA}, 0b1101_1001, 0b1101_1101, flags{1, 0, 1, 0}, flags{1, 0, 1, 0}},
+		{"Set bit 7", args{7, RegA}, 0b0001_1000, 0b1001_1000, flags{1, 1, 0, 1}, flags{1, 1, 0, 1}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c, _ := testSetup()
+			getr, setr := c.getReg8(tt.args.r)
+			setr(tt.regIn)
+			setFlags(c, tt.flagsIn)
+
+			c.Set_n_r(tt.args.n, tt.args.r)
+
+			if getr() != tt.regOut {
+				t.Errorf("Wanted register %v to be %08b: \t Got %08b", tt.args.r, tt.regOut, getr())
+			}
+			checkFlags(c, tt.flagsOut, t)
+		})
 	}
 }
 
 func TestCPU_Set_n_valHL(t *testing.T) {
 	type args struct {
-		n uint8
+		n byte
+	}
+	tests := []struct {
+		name string
+		args
+		Registers
+		valHLIn  byte
+		valHLOut byte
+		flagsIn  flags
+		flagsOut flags
+	}{
+		{"Set bit 0", args{0}, Registers{H: 0x01, L: 0xF0}, 0b1101_1001, 0b1101_1001, flags{0, 1, 0, 1}, flags{0, 1, 0, 1}},
+		{"Set bit 2", args{2}, Registers{H: 0x01, L: 0xF0}, 0b1101_1001, 0b1101_1101, flags{1, 0, 1, 0}, flags{1, 0, 1, 0}},
+		{"Set bit 7", args{7}, Registers{H: 0x01, L: 0xF0}, 0b0001_1000, 0b1001_1000, flags{1, 1, 0, 1}, flags{1, 1, 0, 1}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c, _ := testSetup()
+			c.mem.Wb(c.getHL(), tt.valHLIn)
+			setFlags(c, tt.flagsIn)
+
+			c.Set_n_valHL(tt.args.n)
+
+			b := c.mem.Rb(c.getHL())
+			if b != tt.valHLOut {
+				t.Errorf("Wanted (HL) to be %08b: \t Got %08b", tt.valHLOut, b)
+			}
+			checkFlags(c, tt.flagsOut, t)
+		})
 	}
 }
 
 func TestCPU_Res_n_r(t *testing.T) {
 	type args struct {
-		n uint8
+		n byte
 		r Reg8
 	}
+	tests := []struct {
+		name string
+		args
+		regIn    byte
+		regOut   byte
+		flagsIn  flags
+		flagsOut flags
+	}{
+		{"Unset bit 0", args{0, RegA}, 0b1101_1001, 0b1101_1000, flags{0, 1, 0, 1}, flags{0, 1, 0, 1}},
+		{"Unset bit 2", args{2, RegA}, 0b1101_1001, 0b1101_1001, flags{1, 0, 1, 0}, flags{1, 0, 1, 0}},
+		{"Unset bit 7", args{7, RegA}, 0b1001_1000, 0b0001_1000, flags{1, 1, 0, 1}, flags{1, 1, 0, 1}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c, _ := testSetup()
+			getr, setr := c.getReg8(tt.args.r)
+			setr(tt.regIn)
+			setFlags(c, tt.flagsIn)
+
+			c.Res_n_r(tt.args.n, tt.args.r)
+
+			if getr() != tt.regOut {
+				t.Errorf("Wanted register %v to be %08b: \t Got %08b", tt.args.r, tt.regOut, getr())
+			}
+			checkFlags(c, tt.flagsOut, t)
+		})
+	}
+
 }
 
 func TestCPU_Res_n_valHL(t *testing.T) {
 	type args struct {
-		n uint8
+		n byte
+	}
+	tests := []struct {
+		name string
+		args
+		Registers
+		valHLIn  byte
+		valHLOut byte
+		flagsIn  flags
+		flagsOut flags
+	}{
+		{"Unset bit 0", args{0}, Registers{H: 0x01, L: 0xF0}, 0b1101_1001, 0b1101_1000, flags{0, 1, 0, 1}, flags{0, 1, 0, 1}},
+		{"Unset bit 2", args{2}, Registers{H: 0x01, L: 0xF0}, 0b1101_1001, 0b1101_1001, flags{1, 0, 1, 0}, flags{1, 0, 1, 0}},
+		{"Unset bit 7", args{7}, Registers{H: 0x01, L: 0xF0}, 0b1001_1000, 0b0001_1000, flags{1, 1, 0, 1}, flags{1, 1, 0, 1}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c, _ := testSetup()
+			c.mem.Wb(c.getHL(), tt.valHLIn)
+			setFlags(c, tt.flagsIn)
+
+			c.Res_n_valHL(tt.args.n)
+
+			b := c.mem.Rb(c.getHL())
+			if b != tt.valHLOut {
+				t.Errorf("Wanted (HL) to be %08b: \t Got %08b", tt.valHLOut, b)
+			}
+			checkFlags(c, tt.flagsOut, t)
+		})
 	}
 }

@@ -529,53 +529,58 @@ func (c *CPU) Srl_valHL() {
 func (c *CPU) Bit_n_r(n uint8, r Reg8) {
 	getr, _ := c.getReg8(r)
 	b := getr()
-	mask := byte(0x1) << n
-	if b^mask == 0 {
-		c.setFlagZ(true)
-	} else {
-		c.setFlagZ(false)
-	}
+	mask := byte(1) << n
+	c.setFlagZ(b&mask == 0)
+
 	c.setFlagN(false)
 	c.setFlagH(true)
 }
 
 // Bit_n_valHL sets z=1 if bit n of the byte at $HL is 0.
+// Flags set (znhc): z01-
 func (c *CPU) Bit_n_valHL(n uint8) {
 	hl := c.getHL()
 	b := c.mem.Rb(hl)
-	mask := byte(0x1) << n
-	c.mem.Wb(hl, b&mask)
+	mask := byte(1) << n
+	c.setFlagZ(b&mask == 0)
+
+	c.setFlagN(false)
+	c.setFlagH(true)
 }
 
 // Set_n_r sets bit n of register r.
-func (c *CPU) Set_n_r(n uint8, r Reg8) {
+// Flags set (znhc): ----
+func (c *CPU) Set_n_r(n byte, r Reg8) {
 	getr, setr := c.getReg8(r)
 	b := getr()
-	mask := byte(0x1) << n
+	mask := byte(1) << n
 	setr(b | mask)
 }
 
 // Set_n_valHL sets bit n of the byte at $HL.
-func (c *CPU) Set_n_valHL(n uint8) {
+// Flags set (znhc): ----
+func (c *CPU) Set_n_valHL(n byte) {
 	// FIXME investigate -- does n wrap if n>7?
 	hl := c.getHL()
 	b := c.mem.Rb(hl)
-	mask := byte(0x1) << n
+	mask := byte(1) << n
 	c.mem.Wb(hl, b|mask)
 }
 
 // Res_n_r unsets bit n of register r.
-func (c *CPU) Res_n_r(n uint8, r Reg8) {
+// Flags set (znhc): ----
+func (c *CPU) Res_n_r(n byte, r Reg8) {
 	getr, setr := c.getReg8(r)
 	b := getr()
-	mask := ^(byte(0x1) << n)
+	mask := ^(byte(1) << n)
 	setr(b & mask)
 }
 
 // Res_n_valHL unsets bit n of the byte at $HL.
-func (c *CPU) Res_n_valHL(n uint8) {
+// Flags set (znhc): ----
+func (c *CPU) Res_n_valHL(n byte) {
 	hl := c.getHL()
 	b := c.mem.Rb(hl)
-	mask := ^(byte(0x1) << n)
+	mask := ^(byte(1) << n)
 	c.mem.Wb(hl, b&mask)
 }
