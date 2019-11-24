@@ -349,44 +349,175 @@ func (c *CPU) Rr_valHL() {
 // Sla_r shifts register r to the left with bit 7 moved to the carry flag and bit 0 reset (zeroed).
 // Flags affected (znhc): z00c
 func (c *CPU) Sla_r(r Reg8) {
-	notImpl()
+	getr, setr := c.getReg8(r)
+	b := getr()
+	mask := byte(0b1000_0000)
+	// if carry (if bit 7 of b is 1)
+	if b&mask != 0 {
+		// set the carry flag
+		c.setFlagC(true)
+	} else {
+		c.setFlagC(false)
+	}
+	// shift b left
+	b = b << 1
+	setr(b)
+	c.setFlagZ(b == 0)
+	// Zero all other flags
+	c.setFlagN(false)
+	c.setFlagH(false)
 }
 
 // Sla_valHL shifts the byte at $HL to the left with bit 7 moved to the carry flag and bit 0 reset (zeroed).
+// Flags affected (znhc): z00c
 func (c *CPU) Sla_valHL() {
-	notImpl()
+	hl := c.getHL()
+	b := c.mem.Rb(hl)
+	mask := byte(0b1000_0000)
+	// if carry (if bit 7 of b is 1)
+	if b&mask != 0 {
+		// set the carry flag
+		c.setFlagC(true)
+	} else {
+		c.setFlagC(false)
+	}
+	// shift b left
+	b = b << 1
+	c.mem.Wb(hl, b)
+	c.setFlagZ(b == 0)
+	// Zero all other flags
+	c.setFlagN(false)
+	c.setFlagH(false)
 }
 
 // Swap_r swaps the low and high nibble of register r
+// Flags affected (znhc): z000
 func (c *CPU) Swap_r(r Reg8) {
-	notImpl()
+	getr, setr := c.getReg8(r)
+	b := getr()
+	lo := b & 0x0F
+	hi := b & 0xF0
+	b = (lo << 4) | (hi >> 4)
+	setr(b)
+	c.setFlagZ(b == 0)
+	c.setFlagN(false)
+	c.setFlagH(false)
+	c.setFlagC(false)
 }
 
 // Swap_valHL swaps the low and high nibble of the byte at $HL
+// Flags affected (znhc): z000
 func (c *CPU) Swap_valHL() {
-	notImpl()
+	hl := c.getHL()
+	b := c.mem.Rb(hl)
+	lo := b & 0x0F
+	hi := b & 0xF0
+	b = (lo << 4) | (hi >> 4)
+	c.mem.Wb(hl, b)
+	c.setFlagZ(b == 0)
+	c.setFlagN(false)
+	c.setFlagH(false)
+	c.setFlagC(false)
 }
 
 // Sra_r shifts register r to the right with bit 0 moved to the carry flag
 // and bit 7 retaining its original value.
+// Flags affected (znhc): z00c
 func (c *CPU) Sra_r(r Reg8) {
-	notImpl()
+	getr, setr := c.getReg8(r)
+	b := getr()
+	mask := byte(0b0000_0001)
+	// if carry (if bit 0 of b is 1)
+	if b&mask != 0 {
+		// set the carry flag
+		c.setFlagC(true)
+	} else {
+		c.setFlagC(false)
+	}
+	// shift b right
+	b = b >> 1
+	setr(b)
+	c.setFlagZ(b == 0)
+	// Zero all other flags
+	c.setFlagN(false)
+	c.setFlagH(false)
 }
 
 // Sra_valHL shifts the byte at $HL to the right with bit 0 moved to the carry flag
 // and bit 7 retaining its original value.
+// Flags affected (znhc): z00c
 func (c *CPU) Sra_valHL() {
-	notImpl()
+	hl := c.getHL()
+	b := c.mem.Rb(hl)
+	mask := byte(0b0000_0001)
+	// if carry (if bit 0 of b is 1)
+	if b&mask != 0 {
+		// set the carry flag
+		c.setFlagC(true)
+	} else {
+		c.setFlagC(false)
+	}
+	// shift b right
+	b = b >> 1
+	c.mem.Wb(hl, b)
+	c.setFlagZ(b == 0)
+	// Zero all other flags
+	c.setFlagN(false)
+	c.setFlagH(false)
 }
 
 // Srl_r shifts register r to the right with bit 0 moved to the carry flag and bit 7 zeroed.
+// Flags affected (znhc): z00c
 func (c *CPU) Srl_r(r Reg8) {
-	notImpl()
+	getr, setr := c.getReg8(r)
+	b := getr()
+	mask := byte(0b0000_0001)
+	oldBit7 := b&0b1000_0000 > 0
+	// if carry (if bit 0 of b is 1)
+	if b&mask != 0 {
+		// set the carry flag
+		c.setFlagC(true)
+	} else {
+		c.setFlagC(false)
+	}
+	// shift b right
+	b = b >> 1
+	// set bit 7 to old bit 7
+	if oldBit7 {
+		b |= 0b1000_0000
+	}
+	setr(b)
+	c.setFlagZ(b == 0)
+	// Zero all other flags
+	c.setFlagN(false)
+	c.setFlagH(false)
 }
 
 // Srl_valHL shifts the byte at $HL to the right with bit 0 moved to the carry flag and bit 7 zeroed.
+// Flags affected (znhc): z00c
 func (c *CPU) Srl_valHL() {
-	notImpl()
+	hl := c.getHL()
+	b := c.mem.Rb(hl)
+	mask := byte(0b0000_0001)
+	oldBit7 := b&0b1000_0000 > 0
+	// if carry (if bit 0 of b is 1)
+	if b&mask != 0 {
+		// set the carry flag
+		c.setFlagC(true)
+	} else {
+		c.setFlagC(false)
+	}
+	// shift b right
+	b = b >> 1
+	// set bit 7 to old bit 7
+	if oldBit7 {
+		b |= 0b1000_0000
+	}
+	c.mem.Wb(hl, b)
+	c.setFlagZ(b == 0)
+	// Zero all other flags
+	c.setFlagN(false)
+	c.setFlagH(false)
 }
 
 /**
