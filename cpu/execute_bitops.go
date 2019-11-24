@@ -176,43 +176,178 @@ func (c *CPU) Rlc_valHL() {
 
 // Rl_r rotates register r one bit to the left with the carry's value put into bit 0
 // and bit 7 put into the carry.
-// Flags affected (znhc): 000c
+// Flags affected (znhc): z00c
 func (c *CPU) Rl_r(r Reg8) {
-	notImpl()
+	getr, setr := c.getReg8(r)
+	b := getr()
+	mask := byte(0b1000_0000)
+	oldCarry := c.getFlagC()
+	// if carry (if bit 7 of b is 1)
+	if b&mask != 0 {
+		// set the carry flag
+		c.setFlagC(true)
+	} else {
+		c.setFlagC(false)
+	}
+	// shift b left one byte and
+	// set bit 0 to value of old carry
+	b = b << 1
+	if oldCarry {
+		b |= 1
+	}
+	setr(b)
+	c.setFlagZ(b == 0)
+	// Zero all other flags
+	c.setFlagN(false)
+	c.setFlagH(false)
 }
 
 // Rl_valHL rotates the byte at $HL one bit to the left with the carry's value put into bit 0
 // and bit 7 put into the carry.
-// Flags affected (znhc): 000c
+// Flags affected (znhc): z00c
 func (c *CPU) Rl_valHL() {
-	notImpl()
+	hl := c.getHL()
+	b := c.mem.Rb(hl)
+	mask := byte(0b1000_0000)
+	oldCarry := c.getFlagC()
+	// if carry (if bit 7 of b is 1)
+	if b&mask != 0 {
+		// set the carry flag
+		c.setFlagC(true)
+	} else {
+		c.setFlagC(false)
+	}
+	// shift b left one byte and
+	// set bit 0 to value of old carry
+	b = b << 1
+	if oldCarry {
+		b |= 1
+	}
+	c.mem.Wb(hl, b)
+	c.setFlagZ(b == 0)
+	// Zero all other flags
+	c.setFlagN(false)
+	c.setFlagH(false)
 }
 
 // Rrc_r rotates register r one bit to the right with bit 0 being moved to bit 7 and also
 // stored into the carry.
+// Flags affected (znhc): z00c
 func (c *CPU) Rrc_r(r Reg8) {
-	notImpl()
+	getr, setr := c.getReg8(r)
+	b := getr()
+	mask := byte(0b0000_0001)
+	// if carry (if bit 0 of b is 1)
+	if b&mask != 0 {
+		// shift bits right (discard bit 0)
+		b = b >> 1
+		// set new bit 7 to 1 (wrap bit 0 around)
+		b |= 0b1000_0000
+		setr(b)
+		// set the carry flag
+		c.setFlagC(true)
+		// set zero flag
+		c.setFlagZ(b == 0)
+	} else {
+		// No carry.
+		// Shift bits right.
+		b = b >> 1
+		setr(b)
+		c.setFlagC(false)
+		c.setFlagZ(b == 0)
+	}
+	// Zero all other flags
+	c.setFlagN(false)
+	c.setFlagH(false)
 }
 
 // Rrc_valHL rotates the byte at $HL one bit to the right with bit 0 being moved to bit 7 and also
 // stored into the carry.
+// Flags affected (znhc): z00c
 func (c *CPU) Rrc_valHL() {
-	notImpl()
+	b := c.mem.Rb(c.getHL())
+	mask := byte(0b0000_0001)
+	// if carry (if bit 0 of b is 1)
+	if b&mask != 0 {
+		// shift bits right (discard bit 0)
+		b = b >> 1
+		// set new bit 7 to 1 (wrap bit 0 around)
+		b |= 0b1000_0000
+		c.mem.Wb(c.getHL(), b)
+		// set the carry flag
+		c.setFlagC(true)
+		c.setFlagZ(b == 0)
+	} else {
+		// No carry.
+		// Shift bits right.
+		b = b >> 1
+		c.mem.Wb(c.getHL(), b)
+		c.setFlagC(false)
+		c.setFlagZ(b == 0)
+	}
+	// Zero all other flags
+	c.setFlagN(false)
+	c.setFlagH(false)
 }
 
 // Rr_r rotates register r one bit to the right with the carry's value put into bit 7 and
 // bit 0 being moved to the carry.
+// Flags affected (znhc): z00c
 func (c *CPU) Rr_r(r Reg8) {
-	notImpl()
+	getr, setr := c.getReg8(r)
+	b := getr()
+	mask := byte(0b0000_0001)
+	oldCarry := c.getFlagC()
+	// if carry (if bit 0 of b is 1)
+	if b&mask != 0 {
+		// set the carry flag
+		c.setFlagC(true)
+	} else {
+		c.setFlagC(false)
+	}
+	// shift b right one byte and
+	// set bit 7 to value of old carry
+	b = b >> 1
+	if oldCarry {
+		b |= 0b1000_0000
+	}
+	setr(b)
+	c.setFlagZ(b == 0)
+	// Zero all other flags
+	c.setFlagN(false)
+	c.setFlagH(false)
 }
 
 // Rr_valHL rotates the byte at $HL one bit to the right with the carry's value put into bit 7 and
 // bit 0 being moved to the carry.
+// Flags affected (znhc): z00c
 func (c *CPU) Rr_valHL() {
-	notImpl()
+	hl := c.getHL()
+	b := c.mem.Rb(hl)
+	mask := byte(0b0000_0001)
+	oldCarry := c.getFlagC()
+	// if carry (if bit 0 of b is 1)
+	if b&mask != 0 {
+		// set the carry flag
+		c.setFlagC(true)
+	} else {
+		c.setFlagC(false)
+	}
+	// shift b right one bit and
+	// set bit 7 to value of old carry
+	b = b >> 1
+	if oldCarry {
+		b |= 0b1000_0000
+	}
+	c.mem.Wb(hl, b)
+	c.setFlagZ(b == 0)
+	// Zero all other flags
+	c.setFlagN(false)
+	c.setFlagH(false)
 }
 
 // Sla_r shifts register r to the left with bit 7 moved to the carry flag and bit 0 reset (zeroed).
+// Flags affected (znhc): z00c
 func (c *CPU) Sla_r(r Reg8) {
 	notImpl()
 }
