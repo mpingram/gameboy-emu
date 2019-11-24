@@ -32,6 +32,7 @@ Here's a list of some of the documentation referenced for this emulator:
 * (Codeslinger guide to Gameboy emulation -- this page also talks about DMA.) http://www.codeslinger.co.uk/pages/projects/gameboy/dma.html
 * (Explanation of the Gameboy's 2-bytes-per-pixel graphics data format)https://www.huderlem.com/demos/gameboy2bpp.html
 * (Gameboy CPU manual -- has very complete documentation on opcodes)http://marc.rawer.de/Gameboy/Docs/GBCPUman.pdf
+* (Gameboy Devr's -- good resources on GB hardware) http://www.devrs.com/gb/hardware.php#hardgb
 
 And a meta-reference containing some of these docs, as well as other GB related info: https://github.com/gbdev/awesome-gbdev
 
