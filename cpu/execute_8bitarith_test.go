@@ -1105,6 +1105,32 @@ type flags struct {
 	z, n, h, c byte
 }
 
+func setFlags(cpu *CPU, f flags) {
+	if f.z == 0 {
+		cpu.setFlagZ(false)
+	} else {
+		cpu.setFlagZ(true)
+	}
+
+	if f.n == 0 {
+		cpu.setFlagN(false)
+	} else {
+		cpu.setFlagN(true)
+	}
+
+	if f.h == 0 {
+		cpu.setFlagH(false)
+	} else {
+		cpu.setFlagH(true)
+	}
+
+	if f.c == 0 {
+		cpu.setFlagC(false)
+	} else {
+		cpu.setFlagC(true)
+	}
+}
+
 func checkFlags(cpu *CPU, f flags, t *testing.T) {
 	if f.z != (cpu.F&0x80)>>7 {
 		t.Errorf("Got flags %04b, wanted Z to be %v", cpu.F>>4, f.z)
