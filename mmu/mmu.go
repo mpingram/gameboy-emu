@@ -5,7 +5,7 @@ import (
 	"os"
 )
 
-const bootRomFileLocation = "./roms/boot/DMG_ROM.bin"
+const bootRomFileLocation = "/home/michael/code/gameboy-emu/roms/boot/DMG_ROM.bin"
 
 type MMUOptions struct {
 	GameRom io.Reader
