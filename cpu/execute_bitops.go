@@ -6,48 +6,184 @@ package cpu
 
 // Rlc_A rotates A one bit to the left with bit 7 being moved to bit 0 and also
 // stored into the carry.
+// Flags affected (znhc): 000c
 func (c *CPU) Rlc_A() {
-	notImpl()
+	b := c.A
+	mask := byte(0b1000_0000)
+	// if carry (if bit 7 of b is 1)
+	if b&mask != 0 {
+		// shift bits left (discard bit 7)
+		b = b << 1
+		// set bit new 0 to 1 (wrap bit 7 around)
+		b |= 0b1
+		c.A = b
+		// set the carry flag
+		c.setFlagC(true)
+	} else {
+		// No carry.
+		// Shift bits left.
+		b = b << 1
+		c.A = b
+		c.setFlagC(false)
+	}
+	// Zero all other flags
+	c.setFlagZ(false)
+	c.setFlagN(false)
+	c.setFlagH(false)
 }
 
 // Rl_A rotates A one bit to the left with the carry's value put into bit 0
 // and bit 7 put into the carry.
+// Flags affected (znhc): 000c
 func (c *CPU) Rl_A() {
-	notImpl()
+	b := c.A
+	mask := byte(0b1000_0000)
+	oldCarry := c.getFlagC()
+	// if carry will occur (if bit 7 of b is 1)
+	if b&mask != 0 {
+		// set the carry flag
+		c.setFlagC(true)
+	} else {
+		c.setFlagC(false)
+	}
+	// shift b left one byte and
+	// set bit 0 to value of old carry
+	b = b << 1
+	if oldCarry {
+		b |= 1
+	}
+	c.A = b
+	// Zero all other flags
+	c.setFlagZ(false)
+	c.setFlagN(false)
+	c.setFlagH(false)
 }
 
 // Rrc_A rotates A one bit to the right with bit 0 being moved to bit 7 and also
 // stored into the carry.
+// Flags affected (znhc): 000c
 func (c *CPU) Rrc_A() {
-	notImpl()
+	b := c.A
+	mask := byte(0b0000_0001)
+	// if carry (if bit 0 of b is 1)
+	if b&mask != 0 {
+		// shift bits right (discard bit 0)
+		b = b >> 1
+		// set bit new 7 to 1 (wrap bit 0 around)
+		b |= 0b1000_0000
+		c.A = b
+		// set the carry flag
+		c.setFlagC(true)
+	} else {
+		// No carry.
+		// Shift bits right.
+		b = b >> 1
+		c.A = b
+		c.setFlagC(false)
+	}
+	// Zero all other flags
+	c.setFlagZ(false)
+	c.setFlagN(false)
+	c.setFlagH(false)
 }
 
 // Rr_A rotates A one bit to the right with the carry's value put into bit 7 and
 // bit 0 being moved to the carry.
+// Flags affected (znhc): 000c
 func (c *CPU) Rr_A() {
-	notImpl()
+	b := c.A
+	mask := byte(0b0000_0001)
+	oldCarry := c.getFlagC()
+	// if carry will occur (if bit 0 of b is 1)
+	if b&mask != 0 {
+		// set the carry flag
+		c.setFlagC(true)
+	} else {
+		c.setFlagC(false)
+	}
+	// shift b right one byte and
+	// set bit 7 to value of old carry
+	b = b >> 1
+	if oldCarry {
+		b |= 0b1000_0000
+	}
+	c.A = b
+	// Zero all other flags
+	c.setFlagZ(false)
+	c.setFlagN(false)
+	c.setFlagH(false)
 }
 
 // Rlc_r rotates register r one bit to the left with bit 7 being moved to bit 0 and also
 // stored into the carry.
+// Flags affected (znhc): z00c
 func (c *CPU) Rlc_r(r Reg8) {
-	notImpl()
+	getr, setr := c.getReg8(r)
+	b := getr()
+	mask := byte(0b1000_0000)
+	// if carry (if bit 7 of b is 1)
+	if b&mask != 0 {
+		// shift bits left (discard bit 7)
+		b = b << 1
+		// set bit new 0 to 1 (wrap bit 7 around)
+		b |= 0b1
+		setr(b)
+		// set the carry flag
+		c.setFlagC(true)
+		// set zero flag
+		c.setFlagZ(b == 0)
+	} else {
+		// No carry.
+		// Shift bits left.
+		b = b << 1
+		setr(b)
+		c.setFlagC(false)
+		c.setFlagZ(b == 0)
+	}
+	// Zero all other flags
+	c.setFlagN(false)
+	c.setFlagH(false)
 }
 
 // Rlc_valHL rotates the byte at $HL one bit to the left with bit 7 being moved to bit 0
 // and also stored into the carry.
+// Flags affected (znhc): z00c
 func (c *CPU) Rlc_valHL() {
-	notImpl()
+	b := c.mem.Rb(c.getHL())
+	mask := byte(0b1000_0000)
+	// if carry (if bit 7 of b is 1)
+	if b&mask != 0 {
+		// shift bits left (discard bit 7)
+		b = b << 1
+		// set bit new 0 to 1 (wrap bit 7 around)
+		b |= 0b1
+		c.mem.Wb(c.getHL(), b)
+		// set the carry flag
+		c.setFlagC(true)
+		c.setFlagZ(b == 0)
+	} else {
+		// No carry.
+		// Shift bits left.
+		b = b << 1
+		c.mem.Wb(c.getHL(), b)
+		c.setFlagC(false)
+		c.setFlagZ(b == 0)
+	}
+	// Zero all other flags
+	c.setFlagN(false)
+	c.setFlagH(false)
 }
 
 // Rl_r rotates register r one bit to the left with the carry's value put into bit 0
 // and bit 7 put into the carry.
+// Flags affected (znhc): 000c
 func (c *CPU) Rl_r(r Reg8) {
 	notImpl()
 }
 
 // Rl_valHL rotates the byte at $HL one bit to the left with the carry's value put into bit 0
 // and bit 7 put into the carry.
+// Flags affected (znhc): 000c
 func (c *CPU) Rl_valHL() {
 	notImpl()
 }
