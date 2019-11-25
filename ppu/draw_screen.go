@@ -84,7 +84,7 @@ func (p *PPU) DrawScreen() Screen {
 					// according to fetchOAMEntries.). So we can get the row of the sprite
 					// by y - sprite.y. E.g., if sprite.y=20 and y=26, the row we want is 26 - 20 == 6.
 					row := y - (sprite.y + 16)
-					pixels := p.getSpriteRow(sprite, row)
+					pixels := p.getSpriteRow(sprite, row, lcdc)
 					pixelFifo.overlay(pixels)
 					// pop this element off the sprites array
 					sprites = sprites[1:]
@@ -97,7 +97,17 @@ func (p *PPU) DrawScreen() Screen {
 				panic(err)
 			}
 			// colorize the pixel -- look up its color number in the provided palette.
-			color := px.palette[px.color]
+			var palette palette
+			if px.paletteNumber == bg {
+				palette = p.getBGPalette()
+			} else if px.paletteNumber == obj0 {
+				palette = p.getObj0Palette()
+			} else if px.paletteNumber == obj1 {
+				palette = p.getObj1Palette()
+			} else {
+				panic(fmt.Sprintf("Bad pallete number: %v", px.paletteNumber))
+			}
+			color := palette[px.color]
 			// Draw the pixel to the screen.
 			rgb := toRGB(color)
 			screen = append(screen, rgb...)

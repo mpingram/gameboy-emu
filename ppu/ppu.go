@@ -156,24 +156,85 @@ type spriteAttributes struct {
 	palleteNumber bool // bit 4
 	// tileVRAMBank determines which VRAM bank the sprite's tile data is stored in.
 	// This option is only available in the Gameboy Color, which is
-	tileVRAMBank bool // bit 3
+	// tileVRAMBank bool // bit 3
 	// cgbPaletteNumber chooses the color palette of the sprite in CGB mode (OBP0-7).
 	// The Gameboy color supports 8 swappable palettes (as opposed to the Gameboy's 2 swappable palettes.)
-	cgbPaletteNumber int // bit 2,1,0
+	//cgbPaletteNumber int // bit 2,1,0
 }
 
 // getOAMEntries reads the first ten sprite data entries that are on the current scanline ('y').
 func (p *PPU) getOAMEntries(y byte, lcdc LCDControl) []oamEntry {
-	// FIXME implement
-	return make([]oamEntry, 10)
+	var oamLocation uint16 = 0xFE00
+	// Search through OAM Ram ($FE00-$FE9F) for a sprite with y-coordinate
+	// within 8 pixels of LY (or 16px if lcdc.SpriteSize is set.)
+	var spriteSize byte
+	if lcdc.SpriteSize == false {
+		spriteSize = 8
+	} else {
+		spriteSize = 16
+	}
+	// Search all 40 entries in OAM ram. Each OAM entry is 4 bytes -- Y, X, Tile addr offset, and attribs.
+	sprites := make([]oamEntry, 10)
+	y += 16 // sprite Y coordinate is offset from screen coordinate (LY) by -16px
+	for i := uint16(0); i < 40; i++ {
+		spriteLocation := oamLocation + i*4
+		sprY := p.mem.Rb(spriteLocation)
+		if (sprY <= y) && (sprY + spriteSize > y) {
+			// sprite is on this line; package it into an OAM entry struct
+			b := p.mem.Rb(spriteLocation+3)
+			spriteAttr := spriteAttributes{
+				priority: b & 0b1000_0000 > 0,
+				yFlip: b & 0b0100_0000 > 0,
+				xFlip: b & 0b0010_0000> 0,
+				palleteNumber: b & 0b0001_0000 > 0,
+			}
+			sprites = append(sprites, oamEntry{
+				y: sprY,
+				x: p.mem.Rb(spriteLocation+1),
+				tileAddrOffset: p.mem.Rb(spriteLocation+1),
+				spriteAttributes: spriteAttr,
+			})
+		}
+	}
+	return sprites
 }
+
+type paletteNumber byte
+const (
+	bg paletteNumber = 2
+	obj0 paletteNumber = 0
+	obj1 = 1
+)
 
 // getSpriteRow returns the 8 pixels, from left to right, of a certain row of the sprite.
 // Sprite rows are 0-indexed and run from top to bottom.
 // Sprites can be either 8 or 16 pixels tall, so the bottom row of a sprite can either be
 // row 7 or row 15.
-func (p *PPU) getSpriteRow(spriteData oamEntry, row byte) []pixel {
-	// FIXME implement
+func (p *PPU) getSpriteRow(sprite oamEntry, row byte, lcdc LCDControl) []pixel {
+	// Look up the sprite tile in tile memory (Sprites always use $8000 + unsigned offset)
+	// If 8x8 mode, we can look up the tile address using the offset like normal:
+	pixels := make([]pixel, 8)
+	if lcdc.SpriteSize == false {
+		spriteAddr := 0x8000 + uint16(sprite.tileAddrOffset)
+		// Get this row of the sprite data
+		spriteData := p.getTileRowData(spriteAddr, row)
+		// colorize each pixel (should calling code do this?)
+		var paletteNumber paletteNumber
+		if sprite.spriteAttributes.palleteNumber == false {
+			paletteNumber = obj0
+		} else {
+			paletteNumber = obj1
+		}
+		for _, c := range spriteData {
+			pixels = append(pixels, pixel{color: c, paletteNumber: paletteNumber})
+		}
+		
+	} else {
+		// Haven't implemented this yet, but if 8x16 mode we need to
+		// zero the bottom bit of tileAddrOffset and treat tileAddrOffset
+		// as top of sprite and tileAddrOffset+1 as bottom of sprite. 
+		panic("8x16 mode for getSpriteRow Not implemented!")
+	}
 	return make([]pixel, 8)
 }
 
@@ -183,8 +244,6 @@ func (p *PPU) getSpriteRow(spriteData oamEntry, row byte) []pixel {
 // Reference: https://gbdev.gg8.se/wiki/articles/Video_Display#VRAM_Tile_Data
 func (p *PPU) getWindowTileRow(screenX, screenY byte, lcdc LCDControl) []pixel {
 	// FIXME implement
-	// calculate location in window tile map based on scX / scY
-	// use lcdc to check where window tile map is stored
 	return make([]pixel, 0)
 }
 
@@ -222,10 +281,21 @@ func (p *PPU) getBackgroundTileRow(x, y byte, lcdc LCDControl) []pixel {
 	// The row of the tile that intersects with this y-coordinate. Rows go from 0-7,
 	// where 7 is the bottom row.
 	row := y % 8
-	tileData := p.getTileRowData(tileAddrOffset, row, lcdc)
+	var tileAddr uint16
+	if lcdc.TileAddressingMode == false {
+		// convert addrOffset to a signed byte
+		signedAddrOffset := int8(tileAddrOffset)
+		// NOTE this is potentially buggy!
+		// promote the signed int8 to int in order to add it to 0x8800,
+		// then convert the result back to uint16.
+		tileAddr = uint16(0x8800 + int(signedAddrOffset))
+	} else {
+		tileAddr = 0x8000 + uint16(tileAddrOffset)
+	}
+	tileData := p.getTileRowData(tileAddr, row)
 	pixels := make([]pixel, 8)
 	for _, colorNumber := range tileData {
-		px := pixel{colorNumber, *bgPalette}
+		px := pixel{colorNumber, bg}
 		pixels = append(pixels, px)
 	}
 	return pixels
@@ -240,20 +310,9 @@ func (p *PPU) getBackgroundTileRow(x, y byte, lcdc LCDControl) []pixel {
 // If the bit is 1, the address is determined using the '$8000' method (the same method sprites use):
 // `addrOffset` is treated as an unsigned byte and the memory address is $8000 + addrOffset.
 // Tile rows are 0-indexed and run from top to bottom, so the bottom row of a tile is row 7.
-func (p *PPU) getTileRowData(addrOffset byte, row byte, lcdc LCDControl) []colorNumber {
+func (p *PPU) getTileRowData(tileAddr uint16, row byte) []colorNumber {
 	if row > 7 {
 		panic(fmt.Sprintf("Got tile row > 7: %v", row))
-	}
-	var tileAddr uint16
-	if lcdc.TileAddressingMode == false {
-		// convert addrOffset to a signed byte
-		signedAddrOffset := int8(addrOffset)
-		// NOTE this is potentially buggy!
-		// promote the signed int8 to int in order to add it to 0x8800,
-		// then convert the result back to uint16.
-		tileAddr = uint16(0x8800 + int(signedAddrOffset))
-	} else {
-		tileAddr = 0x8000 + uint16(addrOffset)
 	}
 
 	// Each 2 bytes of the tile is a row of the tile, and they are stored from top
@@ -342,7 +401,7 @@ const (
 
 type pixel struct {
 	color   colorNumber
-	palette palette
+	paletteNumber paletteNumber
 }
 
 // getYScroll gets the y-coordinate of the top-left of the LCD screen.
