@@ -2,18 +2,20 @@ package mmu
 
 import (
 	"io"
-	"os"
 )
 
-const bootRomFileLocation = "/home/michael/code/gameboy-emu/roms/boot/DMG_ROM.bin"
 
 type MMUOptions struct {
 	GameRom io.Reader
+	BootRom io.Reader
 }
 
 func New(opt MMUOptions) *MMU {
 	mmu := &MMU{}
 	mmu.init()
+	if opt.BootRom != nil {
+		mmu.loadBootRom(opt.BootRom)
+	}
 	if opt.GameRom != nil {
 		mmu.loadGameRom(opt.GameRom)
 	}
@@ -34,18 +36,6 @@ func (m *MMU) init() {
 		m.mem[i] = 0x00
 	}
 
-	// load boot rom into memory at $0000-$0100
-	// DEBUG -- for now, read boot rom from hardcoded file location
-	bootRom, err := os.Open(bootRomFileLocation)
-	if err != nil {
-		panic(err)
-	}
-	bootRomMemory := m.mem[0x000:0x0100]
-	_, err = bootRom.Read(bootRomMemory)
-	if err != nil {
-		panic(err)
-	}
-
 	// TODO memory bank switching
 
 	// Set up CPU interface and PPU interface
@@ -53,8 +43,16 @@ func (m *MMU) init() {
 	m.PPUInterface = &ppuMemoryInterface{mmu: m}
 }
 
-func (m *MMU) loadGameRom(io.Reader) {
+func (m *MMU) loadGameRom(rom io.Reader) {
 	// do nothing
+}
+
+func (m *MMU) loadBootRom(rom io.Reader) {
+	bootRomMemory := m.mem[0x000:0x0100]
+	_, err := rom.Read(bootRomMemory)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func (m *MMU) Dump(out io.Writer) {
