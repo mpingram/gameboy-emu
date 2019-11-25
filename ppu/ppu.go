@@ -1,14 +1,29 @@
 package ppu
 
-import (
-	"github.com/mpingram/gameboy-emu/mmu"
-)
+import "fmt"
+
+type MemoryReadWriter interface {
+	MemoryReader
+	MemoryWriter
+}
+
+type MemoryReader interface {
+	Rb(addr uint16) byte
+	Rw(addr uint16) uint16
+}
+
+type MemoryWriter interface {
+	Wb(addr uint16, b byte)
+	Ww(addr uint16, bb uint16)
+}
 
 type PPU struct {
-	TClock <-chan int
-	MClock <-chan int
+	mem MemoryReadWriter
+}
 
-	mem mmu.MemoryReadWriter
+func New(mem MemoryReadWriter) *PPU {
+	ppu := &PPU{mem}
+	return ppu
 }
 
 const screenHeight = 144
@@ -21,15 +36,15 @@ const screenWidth = 160
 type Mode int
 
 const (
-	// OAMSearch is the mode in which the PPU searches through the Object Attribute Memory
+	// OAMSearch (mode 2) is the mode in which the PPU searches through the Object Attribute Memory
 	// for active sprites on this scanline.
 	OAMSearch Mode = 2
-	// PixelDrawing represents the mode in which the PPU draws a scanline to the LCD screen,
+	// PixelDrawing (mode 3) represents the mode in which the PPU draws a scanline to the LCD screen,
 	PixelDrawing = 3
-	// HBlank (Horizontal Blank) represents the mode in which the PPU waits [FIXME: how many?] clocks after drawing a scanline.
+	// HBlank (Horizontal Blank) (mode 0) represents the mode in which the PPU waits [FIXME: how many?] clocks after drawing a scanline.
 	// Then, after drawing the full screen (30 scanlines), the PPU enters a 4th mode:
 	HBlank = 0
-	// VBlank (Vertical Blank) represents the mode in which the PPU waits [FIXME: some number] clocks after drawing the screen.
+	// VBlank (Vertical Blank) (mode 1) represents the mode in which the PPU waits [FIXME: some number] clocks after drawing the screen.
 	VBlank = 1
 )
 
@@ -69,6 +84,21 @@ type LCDControl struct {
 	WindowDisplayORPriority bool // bit 0
 }
 
+func (p *PPU) readLCDControl() LCDControl {
+	var lcdcAddr uint16 = 0xff40
+	b := p.mem.Rb(lcdcAddr)
+	return LCDControl{
+		LCDEnable:               b&0b1000_0000 > 0,
+		WindowTileMapSelect:     b&0b0100_0000 > 0,
+		WindowEnable:            b&0b0010_0000 > 0,
+		TileAddressingMode:      b&0b0001_0000 > 0,
+		BGTileMapSelect:         b&0b0000_1000 > 0,
+		SpriteSize:              b&0b0000_0100 > 0,
+		SpriteEnable:            b&0b0000_0010 > 0,
+		WindowDisplayORPriority: b&0b0000_0001 > 0,
+	}
+}
+
 // LCDStat represents a memory register located at [FIXME address] which is
 // used to enable some interrupts related to drawing the LCD screen
 // FIXME should PPU care about this? Or MMU?
@@ -82,15 +112,17 @@ type LCDStat struct {
 	Mode                         Mode // bits 1,0
 }
 
-// FIXME should PPU care about this?
 func (p *PPU) readLCDStat() LCDStat {
-	// FIXME implement -- read LCDStat from mmu
-	return LCDStat{}
-}
-
-func (p *PPU) readLCDControl() LCDControl {
-	// FIXME implement -- read LCDC from mmu
-	return LCDControl{}
+	lcdStatAddr := uint16(0xFF41)
+	b := p.mem.Rb(lcdStatAddr)
+	return LCDStat{
+		LYCoincidenceInterruptEnable: b&0b0100_0000 > 0,
+		OAMInterruptEnable:           b&0b0010_0000 > 0,
+		VBlankInterruptEnable:        b&0b0001_0000 > 0,
+		HBlankInterruptEnalbe:        b&0b0000_1000 > 0,
+		LYCoincidenceStatus:          b&0b0000_0100 > 0,
+		Mode:                         Mode(b & 0b0000_0010),
+	}
 }
 
 // oamEntry represents one 4-byte entry of sprite data (aka "Object Attributes")
@@ -132,6 +164,7 @@ type spriteAttributes struct {
 
 // getOAMEntries reads the first ten sprite data entries that are on the current scanline ('y').
 func (p *PPU) getOAMEntries(y byte, lcdc LCDControl) []oamEntry {
+	// FIXME implement
 	return make([]oamEntry, 10)
 }
 
@@ -140,6 +173,7 @@ func (p *PPU) getOAMEntries(y byte, lcdc LCDControl) []oamEntry {
 // Sprites can be either 8 or 16 pixels tall, so the bottom row of a sprite can either be
 // row 7 or row 15.
 func (p *PPU) getSpriteRow(spriteData oamEntry, row byte) []pixel {
+	// FIXME implement
 	return make([]pixel, 8)
 }
 
@@ -148,18 +182,35 @@ func (p *PPU) getSpriteRow(spriteData oamEntry, row byte) []pixel {
 // _the top left of the screen_.
 // Reference: https://gbdev.gg8.se/wiki/articles/Video_Display#VRAM_Tile_Data
 func (p *PPU) getWindowTileRow(screenX, screenY, row byte, lcdc LCDControl) []pixel {
+	// FIXME implement
+	// calculate location in window tile map based on scX / scY
+	var tileMapAddr uint16
+	if lcdc.WindowTileMapSelect == false {
+		tileMapAddr = 0x9800
+	} else {
+		tileMapAddr = 0x9C00
+	}
+	// get addrOffset from tile map
+	addrOffset := byte(0x0)
+	tileData := p.getTileRowData(addrOffset, row, lcdc)
+	pixels := make([]pixel, 8)
+	for _, colorNumber := range tileData {
+		px := pixel{colorNumber, *bgPalette}
+		pixels = append(pixels, px)
+	}
 	// parse lcdc to see where to look up window tile map
-	return make([]pixel, 8)
+	return pixels
 }
 
 // getBackgroundTileRow returns the 8 pixels of a row of a background tile located at
 // coordinate x, y.
 func (p *PPU) getBackgroundTileRow(x, y, row byte, lcdc LCDControl) []pixel {
+	// FIXME implement
 	// parse lcdc to see where to look up bg tile map
 	return make([]pixel, 8)
 }
 
-// getTileRow returns the pixels, from left to right, of a certain row of a tile located
+// getTileRowData returns the color numbers, from left to right, of a certain row of a tile located
 // at a location in video memory determined by `addrOffset`.
 // The way the tile's memory address is determined from `addrOffset` depends on the
 // TileAddressingMode bit of the LCDControl register.
@@ -168,39 +219,104 @@ func (p *PPU) getBackgroundTileRow(x, y, row byte, lcdc LCDControl) []pixel {
 // If the bit is 1, the address is determined using the '$8000' method (the same method sprites use):
 // `addrOffset` is treated as an unsigned byte and the memory address is $8000 + addrOffset.
 // Tile rows are 0-indexed and run from top to bottom, so the bottom row of a tile is row 7.
-func (p *PPU) getTileRow(addrOffset byte, row byte) []pixel {
-	return make([]pixel, 8)
+func (p *PPU) getTileRowData(addrOffset byte, row byte, lcdc LCDControl) []colorNumber {
+	if row > 7 {
+		panic(fmt.Sprintf("Got tile row > 7: %v", row))
+	}
+	var tileAddr uint16
+	if lcdc.TileAddressingMode == false {
+		// convert addrOffset to a signed byte
+		signedAddrOffset := int8(addrOffset)
+		// NOTE this is potentially buggy!
+		// promote the signed int8 to int in order to add it to 0x8800,
+		// then convert the result back to uint16.
+		tileAddr = uint16(0x8800 + int(signedAddrOffset))
+	} else {
+		tileAddr = 0x8000 + uint16(addrOffset)
+	}
+
+	// Each 2 bytes of the tile is a row of the tile, and they are stored from top
+	// to bottom. The bytes that represents row n of the tile are at (tileAddr + n*2)
+	b1 := p.mem.Rb(tileAddr + uint16(row*2))
+	b2 := p.mem.Rb(tileAddr + uint16(row*2) + 1)
+	tileData := make([]colorNumber, 8)
+	for i := 7; i >= 0; i-- {
+		// WARNING Possibly buggy
+		// https://gbdev.gg8.se/wiki/articles/Video_Display#VRAM_Tile_Data
+		// b1 contains the low bit of each px, from left (bit 7) to right (bit 0)
+		// b2 contains the high bit of each px, as above.
+		mask := byte(1) << i
+		lo := (b1 & mask) >> i
+		hi := (b2 & mask) >> i
+		color := (hi << 1) | lo
+		tileData = append(tileData, colorNumber(color))
+	}
+
+	return tileData
 }
 
 // palette represents the color palette used to color a tile.
 // Each pixel of a tile has color, numbered from 1-4. The palette is
-// a map from a color number to a color, allowing each tile to be
+// a map from a color number to a RGB color, allowing each tile to be
 // colored with up to four different colors. If a tile is a sprite, color 4
 // is always colored as transparent.
 // In the original Gameboy, there are only 4 colors total to choose from.
-type palette int
+type palette map[colorNumber]color
+
+var bgPalette, obj0Palette, obj1Palette *palette
+
+func (p *PPU) getBGPalette() palette {
+	var bgpAddr uint16 = 0xFF47
+	b := p.mem.Rb(bgpAddr)
+	pal := map[colorNumber]color{
+		col3: color(b & 0b1100_0000 >> 6),
+		col2: color(b & 0b0011_0000 >> 4),
+		col1: color(b & 0b0000_1100 >> 2),
+		col0: color(b & 0b0000_0011),
+	}
+	return palette(pal)
+}
+
+func (p *PPU) getObj0Palette() palette {
+	var obp0Addr uint16 = 0xFF48
+	b := p.mem.Rb(obp0Addr)
+	pal := map[colorNumber]color{
+		col3: color(b & 0b1100_0000 >> 6),
+		col2: color(b & 0b0011_0000 >> 4),
+		col1: color(b & 0b0000_1100 >> 2),
+		col0: color(b & 0b0000_0011),
+	}
+	return palette(pal)
+}
+
+func (p *PPU) getObj1Palette() palette {
+	var obp1Addr uint16 = 0xFF48
+	b := p.mem.Rb(obp1Addr)
+	pal := map[colorNumber]color{
+		col3: color(b & 0b1100_0000 >> 6),
+		col2: color(b & 0b0011_0000 >> 4),
+		col1: color(b & 0b0000_1100 >> 2),
+		col0: color(b & 0b0000_0011),
+	}
+	return palette(pal)
+}
+
+type color byte
 
 const (
-	unspecifiedPalette palette = iota
-	bg
-	obj0
-	obj1
-	obj2 // CGB only
-	obj3 // CGB only
-	obj4 // CGB only
-	obj5 // CGB only
-	obj6 // CGB only
-	obj7 // CGB only
+	white     color = 0
+	lightGray       = 1
+	darkGray        = 2
+	black           = 3
 )
 
-type colorNumber int
+type colorNumber byte
 
 const (
-	unspecifiedColor colorNumber = iota
-	col1
-	col2
-	col3
-	col4
+	col0 colorNumber = 0
+	col1             = 1
+	col2             = 2
+	col3             = 3
 )
 
 type pixel struct {
@@ -211,27 +327,24 @@ type pixel struct {
 // getYScroll gets the y-coordinate of the top-left of the LCD screen.
 // Reads the SCY ($FF42) memory register.
 func (p *PPU) getScrollY() byte {
-	return 0
+	var scyAddr uint16 = 0xFF42
+	return p.mem.Rb(scyAddr)
 }
 
 // getXScroll gets the y-coordinate of the top-left of the LCD screen.
 // Reads the SCX ($FF43) memory register.
 func (p *PPU) getScrollX() byte {
-	return 0
+	var scxAddr uint16 = 0xff43
+	return p.mem.Rb(scxAddr)
 }
 
-// getScanline gets the current scanline (0 through 153). The max 'scanline'
+// getLY gets the current scanline. The max 'scanline'
 // is 153 and not 143 (the LCD screen only has 144 scanlines) because scanlines
 // 144-153 represent the time spent in VBlank mode.
 // Reads the LY ($FF44) memory register.
-func (p *PPU) getScanline() byte {
-	return 0
-}
-
-// getLY sets the current scanline.
-// Writes the LY ($FF44) memory register.
 func (p *PPU) getLY() byte {
-	return 0
+	var lyAddr uint16 = 0xff44
+	return p.mem.Rb(lyAddr)
 }
 
 // getLYCompare gets the value of a register that is used to trigger
@@ -241,31 +354,33 @@ func (p *PPU) getLY() byte {
 // LYCoincidenceInterruptEnabled bit is set in the LCDStat register, then the
 // LYCoincidenceInterrupt is triggered and program execution jumps to that routine.
 // Reads the LYC (LYCompare) ($FF45) memory register.
-// FIXME does ppu actually need to know about this...
 func (p *PPU) getLYCompare() byte {
-	return 0
+	var lycAddr uint16 = 0xff45
+	return p.mem.Rb(lycAddr)
 }
 
 // Gets the X coordinate of the Window top left, minus 7.
 // Reads WindowX-7($FF4B) memory register.
 func (p *PPU) getWindowX() byte {
-	return 0
+	var wxAddr uint16 = 0xff4a
+	return p.mem.Rb(wxAddr)
 }
 
 // Gets the Y coordinate of the Window top left.
 // Reads the WindowY($FF4A) memory registers.
 func (p *PPU) getWindowY() byte {
-	return 0
+	var wyAddr uint16 = 0xff4a
+	return p.mem.Rb(wyAddr)
 }
 
-func shiftTileLeft(pixels []pixel, shift byte) []pixel {
-	return pixels
-}
+// func shiftTileLeft(pixels []pixel, shift byte) []pixel {
+// 	return pixels
+// }
 
-func shiftTileRight(pixels []pixel, shift byte) []pixel {
-	return pixels
-}
+// func shiftTileRight(pixels []pixel, shift byte) []pixel {
+// 	return pixels
+// }
 
-func (p *PPU) colorize(px pixel) (r, g, b byte) {
-	return 0, 0, 0
-}
+// func (p *PPU) colorize(px pixel) [3]byte {
+// 	return px.palette[px.color]
+// }

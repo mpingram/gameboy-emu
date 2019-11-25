@@ -24,7 +24,7 @@ type MemoryWriter interface {
 func New(memoryInterface MemoryReadWriter) *CPU {
 	cpu := &CPU{mem: memoryInterface}
 	// DEBUG this is an exceptionally slow clock
-	cpu.Clock = time.NewTicker(time.Millisecond).C
+	cpu.Clock = time.NewTicker(time.Microsecond).C
 	cpu.readyForStart = true
 	return cpu
 }
@@ -51,6 +51,31 @@ type CPU struct {
 
 func (c *CPU) SetBreakpoint(pc uint16) {
 	c.breakpoint = pc
+}
+
+func (c *CPU) Step() int {
+	// Decode and execute one instruction
+	instr := Decode(c.PC, c.mem)
+
+	// DEBUG: print instruction mnemonic
+	fmt.Printf("($%04x)\t%s\n", c.PC, instr.String())
+	c.Execute(instr)
+
+	orig_pc := c.PC
+	// Increment the PC by the instruction size, IF the instruction
+	// didn't already jump the pc.
+	didNotJump := c.PC == orig_pc
+	cycles := instr.opc.cycles
+	if didNotJump {
+		c.PC += instr.opc.length
+		// If an instruction has a nonzero instr.opc.cyclesNoop,
+		// this represents the number of cycles taken when a branching
+		// instruction did not jump. Therefore, we use it instead.
+		if instr.opc.cyclesIfNoop > 0 {
+			cycles = instr.opc.cyclesIfNoop
+		}
+	}
+	return cycles
 }
 
 // Run begins operation of the CPU. It only has

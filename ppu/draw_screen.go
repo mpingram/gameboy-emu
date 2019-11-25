@@ -2,7 +2,7 @@ package ppu
 
 import "fmt"
 
-func (p *PPU) drawScreen() Screen {
+func (p *PPU) DrawScreen() Screen {
 
 	screen := make(Screen, screenHeight*screenWidth*3)
 
@@ -99,9 +99,9 @@ func (p *PPU) drawScreen() Screen {
 				panic(err)
 			}
 			// colorize the pixel -- look up its color number in the provided palette.
-			r, g, b := p.colorize(px)
+			rgb := px.palette[px.color]
 			// Draw the pixel to the screen.
-			screen = append(screen, r, g, b)
+			screen = append(screen, rgb...)
 
 			// 3d. If the pixel fifo contains only one tile, add the next tile to it.
 			if pixelFifo.size() <= 8 {
