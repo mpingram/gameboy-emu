@@ -73,7 +73,7 @@ type LCDControl struct {
 	// See https://gbdev.gg8.se/wiki/articles/Video_Display#VRAM_Tile_Data
 	TileAddressingMode bool // bit 4 (0=8800-97FF, 1=8000-8FFF)
 	// BGTileMapSelect switches the region of memory the PPU reads the tile
-	// map of the background from.
+	// map of the background from. (0=9800-9BFF, 1=9C00-9FFF)
 	BGTileMapSelect bool // bit 3 (0=9800-9BFF, 1=9C00-9FFF)
 	// SpriteSize toggles whether all sprites are one tile in size or two tiles (0=8x8px, 1=8x16px)
 	SpriteSize bool // bit 2
@@ -181,33 +181,54 @@ func (p *PPU) getSpriteRow(spriteData oamEntry, row byte) []pixel {
 // screen-based coordinate screenX, screenY. Note that the xy coordinates are based on
 // _the top left of the screen_.
 // Reference: https://gbdev.gg8.se/wiki/articles/Video_Display#VRAM_Tile_Data
-func (p *PPU) getWindowTileRow(screenX, screenY, row byte, lcdc LCDControl) []pixel {
+func (p *PPU) getWindowTileRow(screenX, screenY byte, lcdc LCDControl) []pixel {
 	// FIXME implement
 	// calculate location in window tile map based on scX / scY
-	var tileMapAddr uint16
-	if lcdc.WindowTileMapSelect == false {
-		tileMapAddr = 0x9800
+	// use lcdc to check where window tile map is stored
+	return make([]pixel, 0)
+}
+
+// getBackgroundTileRow returns the 8 pixels of a row of a background tile located at
+// coordinate x, y.
+func (p *PPU) getBackgroundTileRow(x, y byte, lcdc LCDControl) []pixel {
+	// check lcdc to see where bg tile map is stored
+	var tileMapLocation uint16
+	if lcdc.BGTileMapSelect == false {
+		tileMapLocation = 0x9800
 	} else {
-		tileMapAddr = 0x9C00
+		tileMapLocation = 0x9C00
 	}
-	// get addrOffset from tile map
-	addrOffset := byte(0x0)
-	tileData := p.getTileRowData(addrOffset, row, lcdc)
+	// calculate byte offset in bg tile map based on x,y
+	y = y % screenHeight
+	x = x % screenWidth
+	offset := (y/8)*32 + (x/8)
+	// Explanation:
+	// Tile memory is laid out like this:
+	// $9BFF/$9FFF +-------------------+
+	//             |                   |
+	//             |                   | 
+	// 32 tile ptrs|                   |
+	//         |   |32|33|34|...       |
+	//         y   |0 |1 |2 |...       |
+	// $9800/$9C00 +--32 tile ptrs-----+ 
+	// 					x ----->
+	// Where each tile represents a 8x8px area. So the formula for 
+	// getting the tile byte offset is floor(y/8)*32 + floor(x/8).
+	// To accommodate wraparound, we set y=y%144 and x=x%160.
+
+	// Read the correct byte of the tile map to get the address of the tile data
+	// (Remember that the address of the tile data is an offset, not a full uint16 addresss.)
+	tileAddrOffset := p.mem.Rb(tileMapLocation+uint16(offset))	
+	// The row of the tile that intersects with this y-coordinate. Rows go from 0-7,
+	// where 7 is the bottom row.
+	row := y % 8
+	tileData := p.getTileRowData(tileAddrOffset, row, lcdc)
 	pixels := make([]pixel, 8)
 	for _, colorNumber := range tileData {
 		px := pixel{colorNumber, *bgPalette}
 		pixels = append(pixels, px)
 	}
-	// parse lcdc to see where to look up window tile map
 	return pixels
-}
-
-// getBackgroundTileRow returns the 8 pixels of a row of a background tile located at
-// coordinate x, y.
-func (p *PPU) getBackgroundTileRow(x, y, row byte, lcdc LCDControl) []pixel {
-	// FIXME implement
-	// parse lcdc to see where to look up bg tile map
-	return make([]pixel, 8)
 }
 
 // getTileRowData returns the color numbers, from left to right, of a certain row of a tile located

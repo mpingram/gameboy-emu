@@ -38,9 +38,8 @@ func (p *PPU) DrawScreen() Screen {
 		// So, scY + y is the absolute coordinate of the current scanline. Because
 		// absolute coordinates have one tile every 8px, (scY + y) % 8 gets us the row
 		// of the tile that the current scanline is on.
-		row := (scY + y) % 8
-		bgTileRow1 := p.getBackgroundTileRow((scX - 8), scY+y, row, lcdc)
-		bgTileRow2 := p.getBackgroundTileRow(scX, scY+y, row, lcdc)
+		bgTileRow1 := p.getBackgroundTileRow((scX - 8), scY+y, lcdc)
+		bgTileRow2 := p.getBackgroundTileRow(scX, scY+y, lcdc)
 		pixelFifo.addTile(bgTileRow1)
 		pixelFifo.addTile(bgTileRow2)
 
@@ -63,13 +62,12 @@ func (p *PPU) DrawScreen() Screen {
 					pixelFifo.clear()
 					// Because window tiles are aligned to the screen, the row we're looking
 					// for is just y (current screen coordinate) mod 8.
-					row := y % 8
 					// We know that x is at least 0 and x is at most 159.
 					// (x is at least zero because of the int(wX) == x check earlier,
 					// and at most 159 due to the for loop.)
 					// Therefore the byte(x) conversion is safe (i.e, x will always fit into a byte.)
-					windowTileRowA := p.getWindowTileRow(byte(x), y, row, lcdc)
-					windowTileRowB := p.getWindowTileRow(byte(x)+8, y, row, lcdc)
+					windowTileRowA := p.getWindowTileRow(byte(x), y, lcdc)
+					windowTileRowB := p.getWindowTileRow(byte(x)+8, y, lcdc)
 					pixelFifo.addTile(windowTileRowA)
 					pixelFifo.addTile(windowTileRowB)
 				}
@@ -99,8 +97,9 @@ func (p *PPU) DrawScreen() Screen {
 				panic(err)
 			}
 			// colorize the pixel -- look up its color number in the provided palette.
-			rgb := px.palette[px.color]
+			color := px.palette[px.color]
 			// Draw the pixel to the screen.
+			rgb := toRGB(color)
 			screen = append(screen, rgb...)
 
 			// 3d. If the pixel fifo contains only one tile, add the next tile to it.
@@ -109,9 +108,6 @@ func (p *PPU) DrawScreen() Screen {
 				// otherwise get the next window tile.
 				var tile []pixel
 				if drawingWindow {
-					// Because window tiles are on the screen coordinate system,
-					// the row we're looking for is just y (current screen coordinate) mod 8.
-					row := y % 8
 					// The byte(x+8) conversion here is safe:
 					// Let n represent the number of pixels in the pixel fifo at the start
 					// of the loop (x=-8). The pixel fifo is filled with 16 pixels and
@@ -119,12 +115,11 @@ func (p *PPU) DrawScreen() Screen {
 					// is dequeued once every loop and x is incremented once every loop,
 					// the pixel fifo will contain 8 pixels and trigger this code path when x=-7.
 					// In that case, x+8 > 0, meaning byte(x+8) is safe.
-					tile = p.getWindowTileRow(byte(x+8), y, row, lcdc)
+					tile = p.getWindowTileRow(byte(x+8), y, lcdc)
 				} else {
 					// Because background tiles are on the global coordinate system,
 					// the row we're looking for is (scY + y) % 8.
-					row := (scY + y + 16) % 8
-					tile = p.getBackgroundTileRow(scX+byte(x+8), scY+y, row, lcdc)
+					tile = p.getBackgroundTileRow(scX+byte(x+8), scY+y, lcdc)
 				}
 				pixelFifo.addTile(tile)
 			}
@@ -176,4 +171,18 @@ func (pf *pixelFifo) clear() {
 
 func (pf *pixelFifo) size() int {
 	return len(pf.fifo)
+}
+
+func toRGB(c color) []byte {
+	switch(c) {
+	case white:
+		return []byte{240, 240, 240}
+	case lightGray:
+		return []byte{150, 150, 150}
+	case darkGray:
+		return []byte{75, 75, 75}
+	case black:
+		return []byte{0,0,0}
+	}
+	panic(fmt.Sprintf("toRGB: Got bad color: %v", c))
 }
