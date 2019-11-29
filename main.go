@@ -8,6 +8,7 @@ import (
 	"github.com/mpingram/gameboy-emu/mmu"
 )
 
+	"github.com/mpingram/gameboy-emu/ppu"
 func main() {
 
 	bootRomFileLocation := os.Args[1]
@@ -20,23 +21,23 @@ func main() {
 	//c := cpu.New(m.CPUInterface)
 
 	videoChannel := make(chan []byte, 1)
-	// go func() {
-	// 	breakpoint := uint16(0x08e)
-	// 	var screen ppu.Screen
-	// 	for {
-	// 		if c.PC == breakpoint {
-	// 			break
-	// 		}
-	// 		c.Step()
-	// 		//screen = p.DrawScreen()
-	// 		screen = make([]byte, 0)
-	// 		for i := 0; i < 144*160; i++ {
-	// 			screen = append(screen, byte(time.Now().Second()%255), 0, byte(i%255))
-	// 		}
-	// 		videoChannel <- screen
-	// 		time.Sleep(100 * time.Millisecond)
-	// 	}
-	// }()
+	go func() {
+		breakpoint := uint16(0x08e)
+		var screen ppu.Screen
+		for {
+			if c.PC == breakpoint {
+				break
+			}
+			c.Step()
+			//screen = p.DrawScreen()
+			screen = make([]byte, 0)
+			for i := 0; i < 144*160; i++ {
+				screen = append(screen, byte(time.Now().Second()%255), 0, byte(i%255))
+			}
+			videoChannel <- screen
+			time.Sleep(100 * time.Millisecond)
+		}
+	}()
 	frontend.ConnectVideo(videoChannel)
 	fmt.Println("?")
 

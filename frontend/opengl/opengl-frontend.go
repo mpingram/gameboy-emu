@@ -75,7 +75,7 @@ func ConnectVideo(screens <-chan []byte) {
 		panic(err)
 	}
 	// DEBUG
-	gl.PolygonMode(gl.FRONT, gl.LINE)
+	// gl.PolygonMode(gl.FRONT, gl.LINE)
 	// END DEBUG
 	version := gl.GoStr(gl.GetString(gl.VERSION))
 	log.Printf("OpenGL version: %s\n", version)
@@ -241,14 +241,27 @@ func ConnectVideo(screens <-chan []byte) {
 
 	// Main loop: render screens. Does not return -- any calling code must
 	// use a separate goroutine to do work.
-	// for screen := range screens {
-	// 	render(screen, screenTexture, shaderProgram, window)
-	// 	glfw.PollEvents()
-	// }
-	for {
+	for screen := range screens {
 		gl.ClearColor(0.9, 0.9, 0.7, 1.0) // gross pale yellow
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 		gl.UseProgram(shaderProgram)
+
+		gl.ActiveTexture(gl.TEXTURE0)
+		gl.BindTexture(gl.TEXTURE_2D, screenTexture)
+
+		// replace the current texture with new texture
+		gl.TexSubImage2D(
+			gl.TEXTURE_2D,
+			0,                // mipmap level 0
+			0,                // x offset
+			0,                // y offset
+			160,              // width
+			144,              // height
+			gl.RGB,           // format
+			gl.UNSIGNED_BYTE, // type,
+			gl.Ptr(screen),   // data
+		)
+		checkGLErr()
 
 		numVerticesToDraw := int32(6)
 		gl.DrawElements(gl.TRIANGLES, numVerticesToDraw, gl.UNSIGNED_INT, gl.PtrOffset(0))
