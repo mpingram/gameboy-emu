@@ -166,29 +166,32 @@ func ConnectVideo(screens <-chan []byte) {
 	checkGLErr()
 	fmt.Println("Loaded indices into ebo!")
 
+	// enable vertex attribute coordinates
+	positionLoc := gl.GetAttribLocation(shaderProgram, gl.Str("a_position\x00"))
 	// tell openGL about the shape of our vertex buffer
 	gl.VertexAttribPointer(
-		0,        // configure the vertex attribute with id 0 (location)
-		3,        // each vertex attribute is made of three components (in this case, xyz coordinates)
-		gl.FLOAT, // each component is a 32bit float
-		false,    // there are no delimiters between each attribute in the array (array is tightly packed)
-		5*4,      // the span of bytes of one vertex attribute is 5 float32s (3 for location attrib, 2 for texel coordinate attrib). Each float32 is 4 bytes.
-		nil,      // the offset of the first vertex attribute in the array is zero. For some reason, this requires a void pointer cast, represented in go-gl as nil.
+		uint32(positionLoc), // configure the vertex attribute with id 0 (location)
+		3,                   // each vertex attribute is made of three components (in this case, xyz coordinates)
+		gl.FLOAT,            // each component is a 32bit float
+		false,               // there are no delimiters between each attribute in the array (array is tightly packed)
+		5*4,                 // the span of bytes of one vertex attribute is 5 float32s (3 for location attrib, 2 for texel coordinate attrib). Each float32 is 4 bytes.
+		nil,                 // the offset of the first vertex attribute in the array is zero. For some reason, this requires a void pointer cast, represented in go-gl as nil.
 	)
-	gl.EnableVertexAttribArray(0)
+	gl.EnableVertexAttribArray(uint32(positionLoc))
 
 	checkGLErr()
 	fmt.Println("Enabled vertex attrib pointer for xyz")
 
+	textureLoc := gl.GetAttribLocation(shaderProgram, gl.Str("a_texcoord\x00"))
 	gl.VertexAttribPointer(
-		1,                 // configure the vertex attribute with id 1 (texture coordinates)
-		2,                 // each vertex attribute is made of two components (in this case, st texture coordinates)
-		gl.FLOAT,          // each component is a 32bit float
-		false,             // there are no delimiters between each ser of components in the array (array is tightly packed)
-		5*4,               // the span of bytes of one vertex attribute is 5 float32s (3 for location attrib, 2 for texel coordinate attrib). Each float32 is 4 bytes.
-		gl.PtrOffset(3*4), // the offset of the first vertex attribute in the array is 12.
+		uint32(textureLoc), // configure the vertex attribute with id 1 (texture coordinates)
+		2,                  // each vertex attribute is made of two components (in this case, st texture coordinates)
+		gl.FLOAT,           // each component is a 32bit float
+		false,              // there are no delimiters between each ser of components in the array (array is tightly packed)
+		5*4,                // the span of bytes of one vertex attribute is 5 float32s (3 for location attrib, 2 for texel coordinate attrib). Each float32 is 4 bytes.
+		gl.PtrOffset(3*4),  // the offset of the first vertex attribute in the array is 12.
 	)
-	gl.EnableVertexAttribArray(1)
+	gl.EnableVertexAttribArray(uint32(textureLoc))
 
 	checkGLErr()
 	fmt.Println("Enabled vertex attrib pointer for st")
