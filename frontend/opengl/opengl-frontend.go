@@ -10,6 +10,8 @@ import (
 	"github.com/go-gl/glfw/v3.2/glfw"
 )
 
+const scale = 3
+
 var (
 	window        *glfw.Window
 	shaderProgram uint32
@@ -30,7 +32,7 @@ func ConnectVideo(screens <-chan []byte) {
 		panic(err)
 	}
 	defer glfw.Terminate()
-	w, err := glfw.CreateWindow(640, 320, "Gameboy", nil, nil)
+	w, err := glfw.CreateWindow(160*scale, 144*scale, "Gameboy", nil, nil)
 	window = w
 	if err != nil {
 		fmt.Println("Error creating GLFW window")
@@ -72,11 +74,13 @@ func ConnectVideo(screens <-chan []byte) {
 		fmt.Println("Error initializing openGL")
 		panic(err)
 	}
-
+	// DEBUG
+	gl.PolygonMode(gl.FRONT, gl.LINE)
+	// END DEBUG
 	version := gl.GoStr(gl.GetString(gl.VERSION))
 	log.Printf("OpenGL version: %s\n", version)
 
-	gl.Viewport(0, 0, 640, 320)
+	gl.Viewport(0, 0, 160, 144)
 
 	// link vertex and fragment shaders into shader program
 	// and use it for rendering
@@ -119,23 +123,16 @@ func ConnectVideo(screens <-chan []byte) {
 	vertices = []float32{
 		// x 	y		z  		s   t
 		// -------------------------
-		-1.0, 1.0, 0.0, 0.0, 1.0, // top-left
-		-1.0, -1.0, 0.0, 0.0, 0.0, // bottom-left
-		1.0, 1.0, 0.0, 1.0, 1.0, // top-right
-		1.0, -1.0, 0.0, 1.0, 0.0, // bottom-right
+		-0.5, 0.5, 0.0, 0.0, 1.0, // top-left
+		-0.5, -0.5, 0.0, 0.0, 0.0, // bottom-left
+		0.5, 0.5, 0.0, 1.0, 1.0, // top-right
+		0.5, -0.5, 0.0, 1.0, 0.0, // bottom-right
 	}
 	eboIndices = []uint32{
 		0, 1, 3, // first triangle
 		0, 3, 2, // second triangle
 	}
 
-	// initialize a vertex array object -- this is a convenience object that
-	// stores information about how the currently bound vertex buffer object is
-	// configured. The information that the vertex array object stores is the
-	// info about the shape of the VBO that we set in gl.VertexAttribPointer below.
-	// gl.GenVertexArrays(1, &vao) // NB not supported in opengl 2.1!
-	// checkGLErr()
-	// fmt.Println("Generated vao!")
 	var vbo uint32
 	gl.GenBuffers(1, &vbo)
 	checkGLErr()
@@ -144,9 +141,6 @@ func ConnectVideo(screens <-chan []byte) {
 	gl.GenBuffers(1, &ebo)
 	checkGLErr()
 	fmt.Println("Generated ebo!")
-
-	// set our new vertex array object as the active VAO
-	// gl.BindVertexArray(vao)
 
 	// load our vertices into our vertex buffer object
 	// gl.BindBuffer call sets vbo as the active vertex buffer; now things we configure
@@ -177,7 +171,7 @@ func ConnectVideo(screens <-chan []byte) {
 		0,        // configure the vertex attribute with id 0 (location)
 		3,        // each vertex attribute is made of three components (in this case, xyz coordinates)
 		gl.FLOAT, // each component is a 32bit float
-		false,    // there are no delimiters between each ser of components in the array (array is tightly packed)
+		false,    // there are no delimiters between each attribute in the array (array is tightly packed)
 		5*4,      // the span of bytes of one vertex attribute is 5 float32s (3 for location attrib, 2 for texel coordinate attrib). Each float32 is 4 bytes.
 		nil,      // the offset of the first vertex attribute in the array is zero. For some reason, this requires a void pointer cast, represented in go-gl as nil.
 	)
@@ -244,8 +238,19 @@ func ConnectVideo(screens <-chan []byte) {
 
 	// Main loop: render screens. Does not return -- any calling code must
 	// use a separate goroutine to do work.
-	for screen := range screens {
-		render(screen, screenTexture, shaderProgram, window)
+	// for screen := range screens {
+	// 	render(screen, screenTexture, shaderProgram, window)
+	// 	glfw.PollEvents()
+	// }
+	for {
+		gl.ClearColor(0.9, 0.9, 0.7, 1.0) // gross pale yellow
+		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+		gl.UseProgram(shaderProgram)
+
+		numVerticesToDraw := int32(6)
+		gl.DrawElements(gl.TRIANGLES, numVerticesToDraw, gl.UNSIGNED_INT, gl.PtrOffset(0))
+
+		window.SwapBuffers()
 		glfw.PollEvents()
 	}
 }
@@ -260,9 +265,7 @@ func checkGLErr() {
 // Render takes a `screen`, which is a slice of bytes which represent
 // 160x144 RGB pixels.
 func render(screen []byte, screenTexture, shaderProgram uint32, window *glfw.Window) {
-	fmt.Println("render called!")
-
-	gl.ClearColor(0.1, 0.2, 0.1, 1.0)
+	gl.ClearColor(0.9, 0.9, 0.7, 1.0)
 	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
 	gl.ActiveTexture(gl.TEXTURE0)
@@ -280,6 +283,7 @@ func render(screen []byte, screenTexture, shaderProgram uint32, window *glfw.Win
 		gl.UNSIGNED_BYTE, // type,
 		gl.Ptr(screen),   // data
 	)
+	checkGLErr()
 
 	// use our screen shader program
 	gl.UseProgram(shaderProgram)
@@ -289,7 +293,6 @@ func render(screen []byte, screenTexture, shaderProgram uint32, window *glfw.Win
 	numVerticesToDraw := int32(6)
 	gl.DrawElements(gl.TRIANGLES, numVerticesToDraw, gl.UNSIGNED_INT, gl.PtrOffset(0))
 
-	fmt.Println("About to swap buffers...")
 	// render screen
 	window.SwapBuffers()
 
