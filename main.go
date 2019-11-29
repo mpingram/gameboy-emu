@@ -19,7 +19,7 @@ func main() {
 		panic(err)
 	}
 	m := mmu.New(mmu.MMUOptions{BootRom: bootRom})
-	p := ppu.New(m.PPUInterface)
+	//p := ppu.New(m.PPUInterface)
 	c := cpu.New(m.CPUInterface)
 
 	videoChannel := make(chan []byte, 1)
@@ -31,9 +31,13 @@ func main() {
 				break
 			}
 			c.Step()
-			screen = p.DrawScreen()
+			//screen = p.DrawScreen()
+			screen = make([]byte, 0)
+			for i := 0; i < 144*160; i++ {
+				screen = append(screen, byte(time.Now().Second()%255), 0, byte(i%255))
+			}
 			videoChannel <- screen
-			time.Sleep(time.Second)
+			time.Sleep(100 * time.Millisecond)
 		}
 	}()
 	frontend.ConnectVideo(videoChannel)

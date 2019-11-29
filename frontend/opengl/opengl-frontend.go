@@ -182,8 +182,10 @@ func ConnectVideo(screens <-chan []byte) {
 		nil,      // the offset of the first vertex attribute in the array is zero. For some reason, this requires a void pointer cast, represented in go-gl as nil.
 	)
 	gl.EnableVertexAttribArray(0)
+
 	checkGLErr()
 	fmt.Println("Enabled vertex attrib pointer for xyz")
+
 	gl.VertexAttribPointer(
 		1,                 // configure the vertex attribute with id 1 (texture coordinates)
 		2,                 // each vertex attribute is made of two components (in this case, st texture coordinates)
@@ -193,6 +195,7 @@ func ConnectVideo(screens <-chan []byte) {
 		gl.PtrOffset(3*4), // the offset of the first vertex attribute in the array is 12.
 	)
 	gl.EnableVertexAttribArray(1)
+
 	checkGLErr()
 	fmt.Println("Enabled vertex attrib pointer for st")
 	// ----------------------------
@@ -207,6 +210,7 @@ func ConnectVideo(screens <-chan []byte) {
 	// when zooming down, use bilinear filtering
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
+
 	checkGLErr()
 	fmt.Println("Created screen texture!")
 
