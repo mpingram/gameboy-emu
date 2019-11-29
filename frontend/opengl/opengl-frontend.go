@@ -6,7 +6,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/go-gl/gl/v3.2-compatibility/gl"
+	"github.com/go-gl/gl/v2.1/gl"
 	"github.com/go-gl/glfw/v3.2/glfw"
 )
 
@@ -19,18 +19,21 @@ var (
 	eboIndices    []uint32
 )
 
-func init() {
+func ConnectVideo(screens <-chan []byte) {
 	// ensure that this runs on main thread
 	runtime.LockOSThread()
 
 	// Initialize GLFW
 	err := glfw.Init()
 	if err != nil {
+		fmt.Println("Error initializing GLFW")
 		panic(err)
 	}
 	defer glfw.Terminate()
-	window, err = glfw.CreateWindow(640, 320, "Gameboy", nil, nil)
+	w, err := glfw.CreateWindow(640, 320, "Gameboy", nil, nil)
+	window = w
 	if err != nil {
+		fmt.Println("Error creating GLFW window")
 		panic(err)
 	}
 	glfw.WindowHint(glfw.Resizable, glfw.False)
@@ -42,33 +45,23 @@ func init() {
 
 	// Initialize OpenGL
 	vertexShaderSource := []byte(`
-	#version 300 es
+	attribute vec3 a_position;
+	attribute vec2 a_texcoord;
 
-	layout (location=0) in vec3 aPos;
-	layout (location=1) in vec2 aTexCoord;
-
-	out vec2 TexCoord;
-
-	void main()
-	{
-		gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0f);
-		TexCoord = aTexCoord;
+	varying vec2 v_texcoord;
+		
+	void main() {
+		gl_Position = vec4(a_position, 1.0);
+		v_texcoord = a_texcoord;
 	}
 	`)
 
 	fragShaderSource := []byte(`
-	#version 300 es
+	varying vec2 v_texcoord;
+	uniform sampler2D u_texture;
 
-	precision mediump float;
-	
-	out vec4 FragColor;
-	in vec2 TexCoord;
-	
-	uniform sampler2D texture1;
-	
-	void main()
-	{
-		FragColor = texture(texture1, TexCoord);
+	void main() {
+		gl_FragColor = texture2D(u_texture, v_texcoord);
 	}
 	`)
 
@@ -76,6 +69,7 @@ func init() {
 	// ====================================
 	err = gl.Init()
 	if err != nil {
+		fmt.Println("Error initializing openGL")
 		panic(err)
 	}
 
@@ -88,10 +82,12 @@ func init() {
 	// and use it for rendering
 	vertexShader, err := compileShader(vertexShaderSource, gl.VERTEX_SHADER)
 	if err != nil {
+		fmt.Println("Error compiling vertex shader")
 		panic(err)
 	}
 	fragShader, err := compileShader(fragShaderSource, gl.FRAGMENT_SHADER)
 	if err != nil {
+		fmt.Println("Error compiling fragment shader")
 		panic(err)
 	}
 
@@ -111,6 +107,9 @@ func init() {
 	// free our shaders once we've linked them into a shader program
 	gl.DeleteShader(vertexShader)
 	gl.DeleteShader(fragShader)
+
+	checkGLErr()
+	fmt.Println("Compiled shaders!")
 
 	// VERTICES
 	// --------------------
@@ -134,14 +133,20 @@ func init() {
 	// stores information about how the currently bound vertex buffer object is
 	// configured. The information that the vertex array object stores is the
 	// info about the shape of the VBO that we set in gl.VertexAttribPointer below.
-	gl.GenVertexArrays(1, &vao)
+	// gl.GenVertexArrays(1, &vao) // NB not supported in opengl 2.1!
+	// checkGLErr()
+	// fmt.Println("Generated vao!")
 	var vbo uint32
 	gl.GenBuffers(1, &vbo)
+	checkGLErr()
+	fmt.Println("Generated vbo!")
 	var ebo uint32
 	gl.GenBuffers(1, &ebo)
+	checkGLErr()
+	fmt.Println("Generated ebo!")
 
 	// set our new vertex array object as the active VAO
-	gl.BindVertexArray(vao)
+	// gl.BindVertexArray(vao)
 
 	// load our vertices into our vertex buffer object
 	// gl.BindBuffer call sets vbo as the active vertex buffer; now things we configure
@@ -153,6 +158,8 @@ func init() {
 		gl.Ptr(vertices), // openGL pointer to the array of vertices
 		gl.STATIC_DRAW,   // hint to openGL that we won't be changing these vertices often at all
 	)
+	checkGLErr()
+	fmt.Println("Loaded vertices into vbo!")
 
 	// load the indices of the vertices we want to draw into the element buffer object
 	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, ebo)
@@ -162,6 +169,8 @@ func init() {
 		gl.Ptr(eboIndices),      // openGL pointer to array of indices
 		gl.STATIC_DRAW,          // hint to openGL that we won't be changing these indices often at all
 	)
+	checkGLErr()
+	fmt.Println("Loaded indices into ebo!")
 
 	// tell openGL about the shape of our vertex buffer
 	gl.VertexAttribPointer(
@@ -173,6 +182,8 @@ func init() {
 		nil,      // the offset of the first vertex attribute in the array is zero. For some reason, this requires a void pointer cast, represented in go-gl as nil.
 	)
 	gl.EnableVertexAttribArray(0)
+	checkGLErr()
+	fmt.Println("Enabled vertex attrib pointer for xyz")
 	gl.VertexAttribPointer(
 		1,                 // configure the vertex attribute with id 1 (texture coordinates)
 		2,                 // each vertex attribute is made of two components (in this case, st texture coordinates)
@@ -182,6 +193,8 @@ func init() {
 		gl.PtrOffset(3*4), // the offset of the first vertex attribute in the array is 12.
 	)
 	gl.EnableVertexAttribArray(1)
+	checkGLErr()
+	fmt.Println("Enabled vertex attrib pointer for st")
 	// ----------------------------
 
 	// create our screen texture
@@ -194,6 +207,8 @@ func init() {
 	// when zooming down, use bilinear filtering
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
+	checkGLErr()
+	fmt.Println("Created screen texture!")
 
 	// create texture data from initial Chip8 screen
 	var emptyScreen []byte
@@ -219,23 +234,29 @@ func init() {
 	gl.UseProgram(shaderProgram)
 	texUniform := gl.GetUniformLocation(shaderProgram, gl.Str("texture1\000"))
 	gl.Uniform1i(texUniform, 0)
+	checkGLErr()
+	fmt.Println("Set texture uniforms!")
 	// =====================================
 
-	// 'handle' errors
-	if err := gl.GetError(); err != gl.NO_ERROR {
-		panic(err)
+	// Main loop: render screens. Does not return -- any calling code must
+	// use a separate goroutine to do work.
+	for screen := range screens {
+		render(screen, screenTexture, shaderProgram, window)
+		glfw.PollEvents()
 	}
 }
 
-func ConnectVideo(screens <-chan []byte) {
-	for screen := range screens {
-		render(screen, screenTexture, shaderProgram, vao, window)
+func checkGLErr() {
+	// 'handle' errors
+	for err := gl.GetError(); err != gl.NO_ERROR; err = gl.GetError() {
+		fmt.Printf("Encountered openGL error %v\n", err)
 	}
 }
 
 // Render takes a `screen`, which is a slice of bytes which represent
 // 160x144 RGB pixels.
-func render(screen []byte, screenTexture, shaderProgram, vao uint32, window *glfw.Window) {
+func render(screen []byte, screenTexture, shaderProgram uint32, window *glfw.Window) {
+	fmt.Println("render called!")
 
 	gl.ClearColor(0.1, 0.2, 0.1, 1.0)
 	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
@@ -260,15 +281,17 @@ func render(screen []byte, screenTexture, shaderProgram, vao uint32, window *glf
 	gl.UseProgram(shaderProgram)
 	// draw the vertices in our vertex array object as triangles
 	// containing our screen-sized rectangle
-	gl.BindVertexArray(vao)
+	// gl.BindVertexArray(vao)
 	numVerticesToDraw := int32(6)
 	gl.DrawElements(gl.TRIANGLES, numVerticesToDraw, gl.UNSIGNED_INT, gl.PtrOffset(0))
 
+	fmt.Println("About to swap buffers...")
 	// render screen
 	window.SwapBuffers()
 
 	// 'handle' errors
 	if err := gl.GetError(); err != gl.NO_ERROR {
+		fmt.Println("Encountered openGL error in render:")
 		panic(err)
 	}
 }
