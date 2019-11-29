@@ -268,6 +268,10 @@ func ConnectVideo(screens <-chan []byte) {
 
 		window.SwapBuffers()
 		glfw.PollEvents()
+		// Break out of loop on esc keypress
+		if k := window.GetKey(glfw.KeyEscape); k == glfw.Press {
+			break
+		}
 	}
 }
 
