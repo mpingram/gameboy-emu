@@ -2,7 +2,6 @@ package openglfrontend
 
 import (
 	"fmt"
-	"log"
 	"runtime"
 	"strings"
 
@@ -77,8 +76,8 @@ func ConnectVideo(screens <-chan []byte) {
 	// DEBUG
 	// gl.PolygonMode(gl.FRONT, gl.LINE)
 	// END DEBUG
-	version := gl.GoStr(gl.GetString(gl.VERSION))
-	log.Printf("OpenGL version: %s\n", version)
+	// version := gl.GoStr(gl.GetString(gl.VERSION))
+	// log.Printf("OpenGL version: %s\n", version)
 
 	gl.Viewport(0, 0, 160, 144)
 
@@ -113,7 +112,6 @@ func ConnectVideo(screens <-chan []byte) {
 	gl.DeleteShader(fragShader)
 
 	checkGLErr()
-	fmt.Println("Compiled shaders!")
 
 	// VERTICES
 	// --------------------
@@ -136,11 +134,9 @@ func ConnectVideo(screens <-chan []byte) {
 	var vbo uint32
 	gl.GenBuffers(1, &vbo)
 	checkGLErr()
-	fmt.Println("Generated vbo!")
 	var ebo uint32
 	gl.GenBuffers(1, &ebo)
 	checkGLErr()
-	fmt.Println("Generated ebo!")
 
 	// load our vertices into our vertex buffer object
 	// gl.BindBuffer call sets vbo as the active vertex buffer; now things we configure
@@ -153,7 +149,6 @@ func ConnectVideo(screens <-chan []byte) {
 		gl.STATIC_DRAW,   // hint to openGL that we won't be changing these vertices often at all
 	)
 	checkGLErr()
-	fmt.Println("Loaded vertices into vbo!")
 
 	// load the indices of the vertices we want to draw into the element buffer object
 	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, ebo)
@@ -164,7 +159,6 @@ func ConnectVideo(screens <-chan []byte) {
 		gl.STATIC_DRAW,          // hint to openGL that we won't be changing these indices often at all
 	)
 	checkGLErr()
-	fmt.Println("Loaded indices into ebo!")
 
 	// enable vertex attribute coordinates
 	positionLoc := gl.GetAttribLocation(shaderProgram, gl.Str("a_position\x00"))
@@ -180,7 +174,6 @@ func ConnectVideo(screens <-chan []byte) {
 	gl.EnableVertexAttribArray(uint32(positionLoc))
 
 	checkGLErr()
-	fmt.Println("Enabled vertex attrib pointer for xyz")
 
 	textureLoc := gl.GetAttribLocation(shaderProgram, gl.Str("a_texcoord\x00"))
 	gl.VertexAttribPointer(
@@ -194,7 +187,6 @@ func ConnectVideo(screens <-chan []byte) {
 	gl.EnableVertexAttribArray(uint32(textureLoc))
 
 	checkGLErr()
-	fmt.Println("Enabled vertex attrib pointer for st")
 	// ----------------------------
 
 	// create our screen texture
@@ -209,7 +201,6 @@ func ConnectVideo(screens <-chan []byte) {
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
 
 	checkGLErr()
-	fmt.Println("Created screen texture!")
 
 	// create texture data from initial Chip8 screen
 	var emptyScreen []byte
@@ -236,7 +227,6 @@ func ConnectVideo(screens <-chan []byte) {
 	texUniform := gl.GetUniformLocation(shaderProgram, gl.Str("texture1\000"))
 	gl.Uniform1i(texUniform, 0)
 	checkGLErr()
-	fmt.Println("Set texture uniforms!")
 	// =====================================
 
 	// Main loop: render screens. Does not return -- any calling code must

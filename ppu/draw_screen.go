@@ -4,7 +4,7 @@ import "fmt"
 
 func (p *PPU) DrawScreen() Screen {
 
-	screen := make(Screen, screenHeight*screenWidth*3)
+	screen := make(Screen, 0)
 
 	for y := byte(0); y < screenHeight; y++ {
 
@@ -159,7 +159,14 @@ type pixelFifo struct {
 }
 
 func (pf *pixelFifo) overlay(sprite []pixel) {
-	// TODO Implement
+	// overlay the sprite's pixels on top of the leftmost 8 pixels in the fifo
+	for i, px := range sprite {
+		// Sprite color 0 is transparent -- don't overlay it.
+		// TODO implement OBJ-to-BG priority (https://gbdev.gg8.se/wiki/articles/Video_Display#FF48_-_OBP0_-_Object_Palette_0_Data_.28R.2FW.29_-_Non_CGB_Mode_Only)
+		if px.color != 0 {
+			pf.fifo[i] = px
+		}
+	}
 }
 
 func (pf *pixelFifo) dequeue() (pixel, error) {
@@ -186,13 +193,13 @@ func (pf *pixelFifo) size() int {
 func toRGB(c color) []byte {
 	switch c {
 	case white:
-		return []byte{240, 240, 240}
+		return []byte{241, 240, 239}
 	case lightGray:
-		return []byte{150, 150, 150}
+		return []byte{151, 150, 149}
 	case darkGray:
-		return []byte{75, 75, 75}
+		return []byte{76, 75, 74}
 	case black:
-		return []byte{0, 0, 0}
+		return []byte{0, 0, 255}
 	}
 	panic(fmt.Sprintf("toRGB: Got bad color: %v", c))
 }

@@ -53,20 +53,19 @@ func (c *CPU) SetBreakpoint(pc uint16) {
 	c.breakpoint = pc
 }
 
-func (c *CPU) Step() int {
+func (c *CPU) Step() (Instruction, int) {
 	// Decode and execute one instruction
 	instr := Decode(c.PC, c.mem)
 
-	// DEBUG: print instruction mnemonic
-	fmt.Printf("($%04x)\t%s\n", c.PC, instr.String())
+	origPC := c.PC
+
 	c.Execute(instr)
 
-	orig_pc := c.PC
 	// Increment the PC by the instruction size, IF the instruction
 	// didn't already jump the pc.
-	didNotJump := c.PC == orig_pc
+	didJump := c.PC != origPC
 	cycles := instr.opc.cycles
-	if didNotJump {
+	if !didJump {
 		c.PC += instr.opc.length
 		// If an instruction has a nonzero instr.opc.cyclesNoop,
 		// this represents the number of cycles taken when a branching
@@ -75,7 +74,7 @@ func (c *CPU) Step() int {
 			cycles = instr.opc.cyclesIfNoop
 		}
 	}
-	return cycles
+	return instr, cycles
 }
 
 // Run begins operation of the CPU. It only has

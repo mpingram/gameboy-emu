@@ -49,15 +49,19 @@ func (c *CPU) JpC(a16 uint16) {
 
 // Jr does a relative jump to PC +/- r8. (r8 is a signed byte).
 func (c *CPU) Jr(r8 int8) {
+	// FIXME in general, the model is "advance PC, then execute instruction at old PC"
+	// Advance PC before calculating offset
+	newPC := c.PC + 2 // jr instructions are 2 bytes long
 	if isNegative := r8 < 0; isNegative {
 		// if our signed byte r8 is negative,
 		// make it positive(multiply it by -1), convert it to a uint16,
 		// and subtract it from PC.
-		c.PC -= uint16(r8 * -1)
+		// FIXME why?
+		c.PC = newPC - uint16(r8*-1)
 	} else {
 		// our signed byte r8 is positive,
 		// so we can just convert it to a uint16 and add it.
-		c.PC += uint16(r8)
+		c.PC = newPC + uint16(r8)
 	}
 }
 
@@ -92,7 +96,10 @@ func (c *CPU) JrC(r8 int8) {
 // Call calls a subroutine at address a16 (push PC onto stack, jump to a16)
 func (c *CPU) Call(a16 uint16) {
 	c.SP -= 2 // stack grows downward in memory
-	c.mem.Ww(c.SP, c.PC)
+	// write the location of the NEXT instruction in
+	// memory -- ie, write c.PC + instr.length.
+	// increment PC to next instruction and push it onto the stack
+	c.mem.Ww(c.SP, c.PC+3)
 	c.PC = a16
 }
 
@@ -168,7 +175,7 @@ func (c *CPU) Reti() {
 }
 
 // Rst (Restart) calls to special memory addresses.
-// (Push PC onto stack and jump to $0000 + n, where
+// (Increment PC, Push PC onto stack and jump to $0000 + n, where
 // n in {0x00, 0x08, 0x10, 0x18, 0x20, 0x28, 0x30, 0x38}
 func (c *CPU) Rst(n RstTarget) {
 	switch n {
@@ -176,7 +183,8 @@ func (c *CPU) Rst(n RstTarget) {
 		// Manually call to address -- c.Call() might
 		// restrict access to this rea of memory.
 		c.SP -= 2 // stack grows downward
-		c.mem.Ww(c.SP, c.PC)
+		// increment PC to next instruction and push it onto the stack
+		c.mem.Ww(c.SP, c.PC+2)
 		c.PC = uint16(n)
 
 	default:
