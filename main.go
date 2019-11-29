@@ -1,9 +1,11 @@
 package main
 
 import (
-	"os"
 	"fmt"
+	"os"
+
 	"github.com/mpingram/gameboy-emu/cpu"
+	frontend "github.com/mpingram/gameboy-emu/frontend/opengl"
 	"github.com/mpingram/gameboy-emu/mmu"
 	"github.com/mpingram/gameboy-emu/ppu"
 )
@@ -18,10 +20,9 @@ func main() {
 	m := mmu.New(mmu.MMUOptions{BootRom: bootRom})
 	p := ppu.New(m.PPUInterface)
 	c := cpu.New(m.CPUInterface)
-	//cpu.SetBreakpoint(0x0100) // this should be just after boot rom
-	// this function call takes over the main thread.
-	// Should terminate once breakpoint is hit
-	// cpu.Run()
+
+	videoChannel := make(chan []byte, 1)
+	frontend.ConnectVideo(videoChannel)
 
 	breakpoint := uint16(0x08e)
 	var screen ppu.Screen

@@ -1,3 +1,7 @@
+github.com/go-gl/gl v0.0.0-20190320180904-bf2b1f2f34d7 h1:SCYMcCJ89LjRGwEa0tRluNRiMjZHalQZrVrvTbPh+qw=
+github.com/go-gl/gl v0.0.0-20190320180904-bf2b1f2f34d7/go.mod h1:482civXOzJJCPzJ4ZOX/pwvXBWSnzD4OKMdH4ClKGbk=
+github.com/go-gl/glfw v0.0.0-20191125211704-12ad95a8df72 h1:LgLYrxDRSVv3kStk6louYTP1ekZ6t7HZY/X05KUyaeM=
+github.com/go-gl/glfw v0.0.0-20191125211704-12ad95a8df72/go.mod h1:vR7hzQXu2zJy9AVAgeJqvqgH9Q5CA+iKCZ2gyEVpxRU=
 github.com/mpingram/gameboy-emu v0.0.0-20190524020622-49fba869781e h1:rvn1gg71K6PD0xbKbKUgCB6ylTXw1pfFrvhMnrHJ8FA=
 github.com/mpingram/gameboy-emu v0.0.0-20190524020622-49fba869781e/go.mod h1:U8JZCVhQHhchQ2lu3Kdm1PTviVpD8/9gFCp23w2ZkNo=
 github.com/mpingram/gameboy-emu v0.0.0-20191115053942-81bea09d4bcd h1:Xh66MsJfqkTkpKNyxcJ8WRYwhhWtTrWSN/qfxYEHFX0=
