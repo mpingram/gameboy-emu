@@ -19,18 +19,17 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	m := mmu.New(mmu.MMUOptions{BootRom: bootRom})
-	p := ppu.New(m.PPUInterface)
-	c := cpu.New(m.CPUInterface)
-
 	videoChannel := make(chan []byte, 1)
+	m := mmu.New(mmu.MMUOptions{BootRom: bootRom})
+	p := ppu.New(m.PPUInterface, videoChannel)
+	c := cpu.New(m.CPUInterface)
 
 	cpuClock := time.NewTicker(time.Nanosecond)
 	defer cpuClock.Stop()
 	paused := false
 	// cpu goroutine
 	go func() {
-		breakpoint := uint16(0x006a)
+		breakpoint := uint16(0x0050)
 		var instr cpu.Instruction
 		for {
 			<-cpuClock.C
@@ -47,27 +46,14 @@ func main() {
 				}
 			} else {
 				pc := c.PC
-				instr, _ = c.Step()
+				instr, cycles := c.Step()
+				p.RunFor(cycles)
 				if pc == breakpoint {
 					paused = true
 					fmt.Println("HALTED after executing")
 					fmt.Printf("($%04x)\t%s\n", pc, instr.String())
 				}
 			}
-		}
-	}()
-	// ppu goroutine
-	ppuClock := time.NewTicker(time.Nanosecond)
-	defer ppuClock.Stop()
-	go func() {
-		for {
-			// This loop should take exactly 70,224 dots
-			// on the 4.194MHz dot clock. (Or 17,556 dots on the 1.0485 MHz dots)
-			<-ppuClock.C // FIXME we'll need to find a different way to
-			// coordinate the cpu and ppu timings.
-			// screen := placeholderScreen()
-			videoChannel <- p.DrawScreen()
-			time.Sleep(time.Microsecond)
 		}
 	}()
 

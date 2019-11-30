@@ -18,11 +18,19 @@ type MemoryWriter interface {
 }
 
 type PPU struct {
-	mem MemoryReadWriter
+	mem      MemoryReadWriter
+	dots     int
+	sprites  []oamEntry
+	wX, wY   byte
+	scX, scY byte
+	lcdc     LCDControl
+	screen   []byte
+	videoOut chan []byte
 }
 
-func New(mem MemoryReadWriter) *PPU {
-	ppu := &PPU{mem}
+func New(mem MemoryReadWriter, videoOut chan []byte) *PPU {
+	ppu := &PPU{mem, 0, []oamEntry{}, 0, 0, 0, 0, LCDControl{}, []byte{}, videoOut}
+	ppu.setMode(OAMSearch)
 	return ppu
 }
 
@@ -52,7 +60,15 @@ const (
 // This has a side effect in the MMU: In some modes, some regions of memory
 // are locked to either the CPU or the PPU.
 func (p *PPU) setMode(mode Mode) {
-	// FIXME implement - set bits 1 and 0 of LCDSTAT register
+	lcdStatAddr := uint16(0xFF41)
+	// set the bottom two bits of the lcdstat byte equal to the binary
+	// representation of the mode
+	b := p.mem.Rb(lcdStatAddr)
+	// clear the bottom two bits
+	b &= 0b1111_1100
+	// set the bottom two bits
+	b |= byte(mode)
+	p.mem.Wb(lcdStatAddr, b)
 }
 
 // LCDControl represents a memory register located at [FIXME address]
@@ -121,7 +137,7 @@ func (p *PPU) readLCDStat() LCDStat {
 		VBlankInterruptEnable:        b&0b0001_0000 > 0,
 		HBlankInterruptEnalbe:        b&0b0000_1000 > 0,
 		LYCoincidenceStatus:          b&0b0000_0100 > 0,
-		Mode:                         Mode(b & 0b0000_0010),
+		Mode:                         Mode(b & 0b0000_0011),
 	}
 }
 
