@@ -30,7 +30,7 @@ func main() {
 	paused := false
 	// cpu goroutine
 	go func() {
-		breakpoint := uint16(0x0000)
+		breakpoint := uint16(0x006a)
 		var instr cpu.Instruction
 		for {
 			<-cpuClock.C
@@ -61,6 +61,8 @@ func main() {
 	defer ppuClock.Stop()
 	go func() {
 		for {
+			// This loop should take exactly 70,224 dots
+			// on the 4.194MHz dot clock. (Or 17,556 dots on the 1.0485 MHz dots)
 			<-ppuClock.C // FIXME we'll need to find a different way to
 			// coordinate the cpu and ppu timings.
 			// screen := placeholderScreen()

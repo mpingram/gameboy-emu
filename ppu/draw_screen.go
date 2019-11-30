@@ -6,7 +6,16 @@ func (p *PPU) DrawScreen() Screen {
 
 	screen := make(Screen, 0)
 
-	for y := byte(0); y < screenHeight; y++ {
+	var maxLY byte = screenHeight + 10 // 10 extra rows indicate VBlank period
+	for y := byte(0); y < maxLY; y++ {
+
+		// set the LY register
+		p.setLY(y)
+		// If y > 143, we are in VBlank mode -- do nothing.
+		if y > screenHeight-1 {
+			p.setMode(VBlank)
+			continue
+		}
 
 		// re-read these registers before every scanline (after every V-Blank period)
 		lcdc := p.readLCDControl()
@@ -140,6 +149,7 @@ func (p *PPU) DrawScreen() Screen {
 		p.setMode(HBlank)
 	}
 
+	// update mode
 	p.setMode(VBlank)
 	return screen
 }

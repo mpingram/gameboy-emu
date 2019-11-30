@@ -179,19 +179,19 @@ func (p *PPU) getOAMEntries(y byte, lcdc LCDControl) []oamEntry {
 	for i := uint16(0); i < 40; i++ {
 		spriteLocation := oamLocation + i*4
 		sprY := p.mem.Rb(spriteLocation)
-		if (sprY <= y) && (sprY + spriteSize > y) {
+		if (sprY <= y) && (sprY+spriteSize > y) {
 			// sprite is on this line; package it into an OAM entry struct
-			b := p.mem.Rb(spriteLocation+3)
+			b := p.mem.Rb(spriteLocation + 3)
 			spriteAttr := spriteAttributes{
-				priority: b & 0b1000_0000 > 0,
-				yFlip: b & 0b0100_0000 > 0,
-				xFlip: b & 0b0010_0000> 0,
-				palleteNumber: b & 0b0001_0000 > 0,
+				priority:      b&0b1000_0000 > 0,
+				yFlip:         b&0b0100_0000 > 0,
+				xFlip:         b&0b0010_0000 > 0,
+				palleteNumber: b&0b0001_0000 > 0,
 			}
 			sprites = append(sprites, oamEntry{
-				y: sprY,
-				x: p.mem.Rb(spriteLocation+1),
-				tileAddrOffset: p.mem.Rb(spriteLocation+1),
+				y:                sprY,
+				x:                p.mem.Rb(spriteLocation + 1),
+				tileAddrOffset:   p.mem.Rb(spriteLocation + 1),
 				spriteAttributes: spriteAttr,
 			})
 		}
@@ -200,10 +200,11 @@ func (p *PPU) getOAMEntries(y byte, lcdc LCDControl) []oamEntry {
 }
 
 type paletteNumber byte
+
 const (
-	bg paletteNumber = 2
+	bg   paletteNumber = 2
 	obj0 paletteNumber = 0
-	obj1 = 1
+	obj1               = 1
 )
 
 // getSpriteRow returns the 8 pixels, from left to right, of a certain row of the sprite.
@@ -228,11 +229,11 @@ func (p *PPU) getSpriteRow(sprite oamEntry, row byte, lcdc LCDControl) []pixel {
 		for _, c := range spriteData {
 			pixels = append(pixels, pixel{color: c, paletteNumber: paletteNumber})
 		}
-		
+
 	} else {
 		// Haven't implemented this yet, but if 8x16 mode we need to
 		// zero the bottom bit of tileAddrOffset and treat tileAddrOffset
-		// as top of sprite and tileAddrOffset+1 as bottom of sprite. 
+		// as top of sprite and tileAddrOffset+1 as bottom of sprite.
 		panic("8x16 mode for getSpriteRow Not implemented!")
 	}
 	return make([]pixel, 8)
@@ -260,24 +261,24 @@ func (p *PPU) getBackgroundTileRow(x, y byte, lcdc LCDControl) []pixel {
 	// calculate byte offset in bg tile map based on x,y
 	y = y % screenHeight
 	x = x % screenWidth
-	offset := (y/8)*32 + (x/8)
+	offset := (y/8)*32 + (x / 8)
 	// Explanation:
 	// Tile memory is laid out like this:
 	// $9BFF/$9FFF +-------------------+
 	//             |                   |
-	//             |                   | 
+	//             |                   |
 	// 32 tile ptrs|                   |
 	//         |   |32|33|34|...       |
 	//         y   |0 |1 |2 |...       |
-	// $9800/$9C00 +--32 tile ptrs-----+ 
+	// $9800/$9C00 +--32 tile ptrs-----+
 	// 					x ----->
-	// Where each tile represents a 8x8px area. So the formula for 
+	// Where each tile represents a 8x8px area. So the formula for
 	// getting the tile byte offset is floor(y/8)*32 + floor(x/8).
 	// To accommodate wraparound, we set y=y%144 and x=x%160.
 
 	// Read the correct byte of the tile map to get the address of the tile data
 	// (Remember that the address of the tile data is an offset, not a full uint16 addresss.)
-	tileAddrOffset := p.mem.Rb(tileMapLocation+uint16(offset))	
+	tileAddrOffset := p.mem.Rb(tileMapLocation + uint16(offset))
 	// The row of the tile that intersects with this y-coordinate. Rows go from 0-7,
 	// where 7 is the bottom row.
 	row := y % 8
@@ -400,7 +401,7 @@ const (
 )
 
 type pixel struct {
-	color   colorNumber
+	color         colorNumber
 	paletteNumber paletteNumber
 }
 
@@ -425,6 +426,15 @@ func (p *PPU) getScrollX() byte {
 func (p *PPU) getLY() byte {
 	var lyAddr uint16 = 0xff44
 	return p.mem.Rb(lyAddr)
+}
+
+// setLY sets the current scanline. The max 'scanline'
+// is 153 and not 143 (the LCD screen only has 144 scanlines) because scanlines
+// 144-153 represent the time spent in VBlank mode.
+// Reads the LY ($FF44) memory register.
+func (p *PPU) setLY(ly byte) {
+	var lyAddr uint16 = 0xff44
+	p.mem.Wb(lyAddr, ly)
 }
 
 // getLYCompare gets the value of a register that is used to trigger
