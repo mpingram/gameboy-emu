@@ -274,8 +274,9 @@ func (p *PPU) getBackgroundTileRow(x, y byte, lcdc LCDControl) []pixel {
 	// } else {
 	// 	tileMapLocation = 0x9C00
 	// }
-	// // calculate byte offset in bg tile map based on x,y
+	// calculate byte offset in bg tile map based on x,y
 	// offset := (y/8)*32 + (x / 8)
+	// offset := 0x104
 	// Explanation:
 	// Tile memory is laid out like this:
 	// $9BFF/$9FFF +-------------------+
@@ -293,35 +294,26 @@ func (p *PPU) getBackgroundTileRow(x, y byte, lcdc LCDControl) []pixel {
 	// Read the correct byte of the tile map to get the address of the tile data
 	// (Remember that the address of the tile data is an offset, not a full uint16 addresss.)
 	// tileAddrOffset := p.mem.Rb(tileMapLocation + uint16(offset))
-	// // The row of the tile that intersects with this y-coordinate. Rows go from 0-7,
-	// // where 7 is the bottom row.
-	// row := y % 8
-	// var tileAddr uint16
-	// if lcdc.TileAddressingMode == true {
-	// 	// convert addrOffset to a signed byte
-	// 	signedAddrOffset := int8(tileAddrOffset)
-	// 	// NOTE this is potentially buggy!
-	// 	// promote the signed int8 to int in order to add it to 0x8800,
-	// 	// then convert the result back to uint16.
-	// 	tileAddr = uint16(0x8800 + int(signedAddrOffset))
-	// } else {
-	// 	tileAddr = 0x8000 + uint16(tileAddrOffset)
-	// }
-	// tileData := p.getTileRowData(tileAddr, row)
-	// pixels := make([]pixel, 8)
-	// for _, colorNumber := range tileData {
-	// 	px := pixel{colorNumber, bg}
-	// 	pixels = append(pixels, px)
-	// }
-	pixels := []pixel{
-		pixel{color: col0, paletteNumber: bg},
-		pixel{color: col1, paletteNumber: bg},
-		pixel{color: col2, paletteNumber: bg},
-		pixel{color: col3, paletteNumber: bg},
-		pixel{color: col0, paletteNumber: bg},
-		pixel{color: col1, paletteNumber: bg},
-		pixel{color: col2, paletteNumber: bg},
-		pixel{color: col3, paletteNumber: bg},
+	tileAddrOffset := p.mem.Rb(0x9904)
+	var tileAddr uint16
+	if lcdc.TileAddressingMode == true {
+		// convert addrOffset to a signed byte
+		signedAddrOffset := int8(tileAddrOffset)
+		// NOTE this is potentially buggy!
+		// promote the signed int8 to int in order to add it to 0x8800,
+		// then convert the result back to uint16.
+		tileAddr = uint16(0x8800 + int(signedAddrOffset))
+	} else {
+		tileAddr = 0x8000 + uint16(tileAddrOffset)
+	}
+	// The row of the tile that intersects with this y-coordinate. Rows go from 0-7,
+	// where 7 is the bottom row.
+	row := y % 8
+	tileData := p.getTileRowData(tileAddr, row)
+	pixels := make([]pixel, 8)
+	for _, colorNumber := range tileData {
+		px := pixel{colorNumber, bg}
+		pixels = append(pixels, px)
 	}
 	return pixels
 }

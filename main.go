@@ -19,8 +19,14 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	gameRomFileLocation := os.Args[2]
+	gameRom, err := os.Open(gameRomFileLocation)
+	if err != nil {
+		panic(err)
+	}
+
 	videoChannel := make(chan []byte, 1)
-	m := mmu.New(mmu.MMUOptions{BootRom: bootRom})
+	m := mmu.New(mmu.MMUOptions{BootRom: bootRom, GameRom: gameRom})
 	p := ppu.New(m.PPUInterface, videoChannel)
 	c := cpu.New(m.CPUInterface)
 
@@ -29,7 +35,7 @@ func main() {
 	paused := false
 	// cpu goroutine
 	go func() {
-		breakpoint := uint16(0x0100)
+		breakpoint := uint16(0xffff)
 		var instr cpu.Instruction
 		for {
 			<-cpuClock.C
