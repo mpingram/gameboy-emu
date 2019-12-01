@@ -203,13 +203,13 @@ func (pf *pixelFifo) size() int {
 func toRGB(c color) []byte {
 	switch c {
 	case white:
-		return []byte{241, 240, 239}
+		return []byte{255, 255, 255}
 	case lightGray:
 		return []byte{151, 150, 149}
 	case darkGray:
 		return []byte{76, 75, 74}
 	case black:
-		return []byte{0, 0, 255}
+		return []byte{0, 0, 0}
 	}
 	panic(fmt.Sprintf("toRGB: Got bad color: %v", c))
 }

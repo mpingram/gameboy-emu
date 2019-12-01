@@ -29,15 +29,25 @@ func main() {
 	paused := false
 	// cpu goroutine
 	go func() {
-		breakpoint := uint16(0x0050)
+		breakpoint := uint16(0x0100)
 		var instr cpu.Instruction
 		for {
 			<-cpuClock.C
 			if paused {
 				fmt.Print("> ")
 				command := waitForInput()
-				if command == "d\n" || command == "dump\n" {
-					fmt.Println(dumpCPUState(c))
+				if command == "p\n" || command == "print\n" {
+					fmt.Println(printCPUState(c))
+				} else if command == "m\n" || command == "memdump\n" {
+					memdump, err := os.Create("dumps/memdump.bin")
+					defer memdump.Close()
+					if err != nil {
+						panic(err)
+					}
+					// dump memory to file
+					m.Dump(memdump)
+				} else if command == "e\n" || command == "exit\n" {
+					break
 				} else {
 					pc := c.PC
 					instr, _ = c.Step()
@@ -59,13 +69,6 @@ func main() {
 
 	frontend.ConnectVideo(videoChannel)
 
-	memdump, err := os.Create("dumps/memdump.bin")
-	defer memdump.Close()
-	if err != nil {
-		panic(err)
-	}
-	// dump memory to file
-	m.Dump(memdump)
 }
 
 func waitForInput() string {
@@ -78,7 +81,7 @@ func waitForInput() string {
 	return text
 }
 
-func dumpCPUState(c *cpu.CPU) string {
+func printCPUState(c *cpu.CPU) string {
 	return fmt.Sprintf(`
 	===== CPU =====
 	PC: %0x \t SP: %0x

@@ -32,7 +32,7 @@ func (c *CPU) Inc_SP() {
 	fmt.Println("Instruction not implemented: INC SP")
 }
 func (c *CPU) Dec_rr(rr Reg16) {
-	fmt.Println("Instruction not implemented: DEC rr")
+	fmt.Printf("(PC: $04X) Instruction not implemented: DEC rr ", c.PC)
 }
 func (c *CPU) Dec_SP() {
 	fmt.Println("Instruction not implemented: DEC sp")

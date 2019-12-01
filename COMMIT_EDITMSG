@@ -1,11 +1,1 @@
-Debug issue executing gameboy rom instruction at $0064
-
-$0064 - LD A ($FF00+$44)
-$0066 - CP $90
-$0068 - JR NZ, Addr_0064
-
-- It seems like this loop is waiting for LY($FF44) to take
-on a certain value. Are we setting LY in the ppu?
-- We actually need to coordinate between the ppu and cpu for
-this to work -- the right now the lyc is doing the full range
-every clock cycle(!). That ain't right.
+Implement step-based version of ppu loop
