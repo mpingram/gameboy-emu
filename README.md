@@ -33,6 +33,7 @@ Here's a list of some of the documentation referenced for this emulator:
 * (Explanation of the Gameboy's 2-bytes-per-pixel graphics data format)https://www.huderlem.com/demos/gameboy2bpp.html
 * (Gameboy CPU manual -- has very complete documentation on opcodes)http://marc.rawer.de/Gameboy/Docs/GBCPUman.pdf
 * (Gameboy Devr's -- good resources on GB hardware) http://www.devrs.com/gb/hardware.php#hardgb
+* (Helpful explanation of Z80 bit shifting instructions)http://jgmalcolm.com/z80/advanced/shif
 
 And a meta-reference containing some of these docs, as well as other GB related info: https://github.com/gbdev/awesome-gbdev
 
