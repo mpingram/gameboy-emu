@@ -2,76 +2,65 @@ package ppu
 
 import "fmt"
 
-// RunFor runs the PPU for a certain number of 4.14xxx MHz cycles (dots).
+// RunFor runs the PPU for a certain number of 4.14xxx MHz cycles.
 // Cycles should always be divisible by 2.
-func (p *PPU) RunFor(dots int) {
-	if dots%2 != 0 {
-		panic(fmt.Sprintf("ppu.RunFor(%v) called with dots not divisible by 2", dots))
+func (p *PPU) RunFor(cycles int) {
+	if cycles%2 != 0 {
+		panic(fmt.Sprintf("ppu.RunFor(%v) called with cycles not divisible by 2", cycles))
 	}
-	for i := 0; i < dots; i += 2 {
-		// Step does 2 dots worth of work; call it every 2 dots
+	for i := 0; i < cycles; i++ {
 		p.Step()
 	}
 }
 
-// Step executes 2 dots' worth of work on the PPU.
+// Step executes 1 cycle's worth of work on the PPU.
 func (p *PPU) Step() {
-	p.dots += 2
+	p.cycles = (p.cycles + 1) % 456
 
 	lcdstat := p.readLCDStat()
 
-	switch lcdstat.Mode {
-	case OAMSearch: // 80 dots total
-		if p.dots == 2 {
-			// Find the first 10 sprites on this line (8 dots each)
-			// get the first 10 sprites that are on this y-coordinate
-			p.sprites = p.getOAMEntries(p.getLY(), p.readLCDControl())
-		} else if p.dots == 80 {
+	if lcdstat.Mode != VBlank {
+		// In non-VBlank mode, iterate through OAMSearch -> Pixel Drawing -> HBLank modes,
+		// drawing a scanline every 456 clocks.
+		switch p.cycles {
+		case 0:
+			p.setMode(OAMSearch)
+		case 80:
 			p.setMode(PixelDrawing)
-		}
-
-	case PixelDrawing: // takes 160 + about 10 dots per sprite total
-		if p.dots == 82 {
 			scanline := p.drawScanline(p.readLCDControl(), p.getLY(), p.getScrollX(), p.getScrollY())
 			p.screen = append(p.screen, scanline...)
-		} else if p.dots == 160+10*len(p.sprites) {
+		case 160:
 			p.setMode(HBlank)
-		}
-
-	case HBlank: // ends after 456 dots
-		// do nothing
-		if p.dots == 456 {
-			if p.getLY() == 143 { // 143 is last onscreen scanline
-				p.setMode(VBlank)
-				p.setLY(p.getLY() + 1)
-			} else {
+		case 456:
+			if p.getLY() < 143 { // 143 is last onscreen scanline
 				p.setMode(OAMSearch)
 				p.setLY(p.getLY() + 1)
-			}
-			// reset the dot clock
-			p.dots = 0
-		}
-
-	case VBlank: // takes 456 dots
-		if p.dots == 456 {
-			// If it's the first scanline, render the screen
-			if p.getLY() == 144 {
+			} else if p.getLY() == 143 {
+				p.setMode(VBlank)
 				// send screen to output channel
 				p.videoOut <- p.screen
 				p.screen = make([]byte, 0)
 				p.setLY(p.getLY() + 1)
-			} else if p.getLY() == 153 { // 153 is the last scanline (?)
-				// If it's the last scanline, enter OAM search
-				// enter OAMSearch mode
-				p.setMode(OAMSearch)
-				p.setLY(0)
 			} else {
-				// otherwise just move to the next scanline; remain
-				// in VBlank mode.
-				p.setLY(p.getLY() + 1)
+				panic(fmt.Sprintf("LY is %v (>143), but mode is %v (should be VBlank)", p.getLY(), lcdstat.Mode))
 			}
-			p.dots = 0
 		}
+		return
+
+	} else if lcdstat.Mode == VBlank {
+		// In VBlank mode, increment LY every 456 clocks until LY == 153,
+		// at which point re-enter OAMSearch mode and resume drawing scanlines.
+		if p.cycles == 456 {
+			if p.getLY() < 153 {
+				p.setLY(p.getLY() + 1)
+			} else if p.getLY() == 153 {
+				p.setLY(0)
+				p.setMode(OAMSearch)
+			} else {
+				panic(fmt.Sprintf("LY is %v, should be less than 153", p.getLY(), lcdstat.Mode))
+			}
+		}
+		return
 	}
 }
 
@@ -86,6 +75,11 @@ func (p *PPU) drawScanline(lcdc LCDControl, ly, scX, scY byte) []byte {
 	pixelFifo.addTile(bgTile)
 
 	for x := scX - scX%8; x < scX+screenWidth; x++ {
+		// Every 8 pixels (including x=0), fill the pixel fifo with the next tile.
+		if x%8 == 0 {
+			tile := p.getBackgroundTileRow(x+8, y, lcdc)
+			pixelFifo.addTile(tile)
+		}
 		// Dequeue a pixel from the pixel fifo.
 		px, err := pixelFifo.dequeue()
 		if err != nil {
@@ -97,11 +91,6 @@ func (p *PPU) drawScanline(lcdc LCDControl, ly, scX, scY byte) []byte {
 			color := palette[px.color]
 			rgb := toRGB(color)
 			scanline = append(scanline, rgb...)
-		}
-		// Every 8 pixels (including x=0), fill the pixel fifo with the next tile.
-		if x%8 == 0 {
-			tile := p.getBackgroundTileRow(x+8, y, lcdc)
-			pixelFifo.addTile(tile)
 		}
 	}
 	return scanline

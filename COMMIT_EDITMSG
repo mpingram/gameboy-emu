@@ -1,1 +1,3 @@
-Implement step-based version of ppu loop
+Refactor ppu code
+
+- Throw out all code not related to drawing bg -- might bring it back later
