@@ -8,12 +8,16 @@ type MemoryReadWriter interface {
 }
 
 type MemoryReader interface {
+	// Rb reads one byte.
 	Rb(addr uint16) byte
+	// Rw reads one word.
 	Rw(addr uint16) uint16
 }
 
 type MemoryWriter interface {
+	// Wb writes one byte.
 	Wb(addr uint16, b byte)
+	// Ww writes one word.
 	Ww(addr uint16, bb uint16)
 }
 
@@ -268,15 +272,14 @@ func (p *PPU) getWindowTileRow(screenX, screenY byte, lcdc LCDControl) []pixel {
 // coordinate x, y.
 func (p *PPU) getBackgroundTileRow(x, y byte, lcdc LCDControl) []pixel {
 	// check lcdc to see where bg tile map is stored
-	// var tileMapLocation uint16
-	// if lcdc.BGTileMapSelect == false {
-	// 	tileMapLocation = 0x9800
-	// } else {
-	// 	tileMapLocation = 0x9C00
-	// }
+	var tileMapLocation uint16
+	if lcdc.BGTileMapSelect == false {
+		tileMapLocation = 0x9800
+	} else {
+		tileMapLocation = 0x9C00
+	}
 	// calculate byte offset in bg tile map based on x,y
-	// offset := (y/8)*32 + (x / 8)
-	// offset := 0x104
+	offset := (y/8)*32 + (x / 8)
 	// Explanation:
 	// Tile memory is laid out like this:
 	// $9BFF/$9FFF +-------------------+
@@ -293,8 +296,8 @@ func (p *PPU) getBackgroundTileRow(x, y byte, lcdc LCDControl) []pixel {
 
 	// Read the correct byte of the tile map to get the address of the tile data
 	// (Remember that the address of the tile data is an offset, not a full uint16 addresss.)
-	// tileAddrOffset := p.mem.Rb(tileMapLocation + uint16(offset))
-	tileAddrOffset := p.mem.Rb(0x9904)
+	tileAddrOffset := p.mem.Rb(tileMapLocation + uint16(offset))
+	// tileAddrOffset := p.mem.Rb(0x9904)
 	var tileAddr uint16
 	if lcdc.TileAddressingMode == true {
 		// convert addrOffset to a signed byte

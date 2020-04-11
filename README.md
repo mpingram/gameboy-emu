@@ -31,14 +31,15 @@ Here's a list of some of the documentation referenced for this emulator:
 * (Exezin's detailed explanation of Direct Memory Access in the GB) https://exez.in/gameboy-dma
 * (Codeslinger guide to Gameboy emulation -- this page also talks about DMA.) http://www.codeslinger.co.uk/pages/projects/gameboy/dma.html
 * (Explanation of the Gameboy's 2-bytes-per-pixel graphics data format)https://www.huderlem.com/demos/gameboy2bpp.html
+* (PPU timing breakdown) http://blog.kevtris.org/blogfiles/Nitty%20Gritty%20Gameboy%20VRAM%20Timing.txt
 
 And a meta-reference containing some of these docs, as well as other GB related info: https://github.com/gbdev/awesome-gbdev
 
 ## Architecture
 The emulator code is split into three main parts, the CPU, the PPU (Pixel Processing Unit), and the MMU (Memory Management Unit).
 ### CPU
-The CPU code is in charge of decoding and executing instructions for the Gameboy's CPU (a SHARP LR35902, which is very similar to the 8080 and Z80 procesors.) 
-The process involves: 
+The CPU code is in charge of decoding and executing instructions for the Gameboy's CPU (a SHARP LR35902, which is very similar to the 8080 and Z80 procesors.)
+The process involves:
 1) Decoding CPU instructions: `decode.go` reads raw bytes from memory and interprets them as CPU instructions -- e.g. `0x3e 0x01` -> `LD A, 0x01` ("Load 0x01 into register A")
 2) Executing the CPU instructions: `execute.go` takes a CPU instruction and its argument(s) and calls a function that manipulates the state of the CPU and MMU.
 
@@ -49,5 +50,5 @@ The MMU is responsible for providing read/write access of the Gameboy's 8KiB mem
 >The current state of the MMU is __barely implemented__. There's a basic interface to 8KiB of memory, but none of the complexities are implemented yet.
 
 ### PPU (Pixel Processing Unit)
-The PPU is a real physical chip on the original Gameboy whose entire job is to display pixels to the Gameboy's LCD screen. 
+The PPU is a real physical chip on the original Gameboy whose entire job is to display pixels to the Gameboy's LCD screen.
 >The PPU code in this repository is currently __not implemented__.
