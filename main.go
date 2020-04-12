@@ -25,7 +25,7 @@ func main() {
 		panic(err)
 	}
 
-	videoChannel := make(chan []ppu.Color, 1)
+	videoChannel := make(chan []ppu.Pixel, 1)
 	m := mmu.New(mmu.MMUOptions{BootRom: bootRom, GameRom: gameRom})
 	p := ppu.New(m.PPUInterface, videoChannel)
 	c := cpu.New(m.CPUInterface)

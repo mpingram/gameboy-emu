@@ -24,12 +24,12 @@ type MemoryWriter interface {
 type PPU struct {
 	mem      MemoryReadWriter
 	cycles   int
-	screen   []Color
-	videoOut chan []Color
+	screen   []Pixel
+	videoOut chan []Pixel
 }
 
-func New(mem MemoryReadWriter, videoOut chan []Color) *PPU {
-	ppu := &PPU{mem, 0, []Color{}, videoOut}
+func New(mem MemoryReadWriter, videoOut chan []Pixel) *PPU {
+	ppu := &PPU{mem, 0, []Pixel{}, videoOut}
 	ppu.setMode(OAMSearch)
 	return ppu
 }
@@ -143,7 +143,7 @@ func (p *PPU) readLCDStat() LCDStat {
 
 // getBackgroundTileRow returns the 8 pixels of a row of a background tile located at
 // coordinate x, y.
-func (p *PPU) getBackgroundTileRow(x, y byte) []pixel {
+func (p *PPU) getBackgroundTileRow(x, y byte) []pixelData {
 	// check lcdc to see where bg tile map is stored
 	lcdc := p.readLCDControl()
 	var tileMapLocation uint16
@@ -186,9 +186,9 @@ func (p *PPU) getBackgroundTileRow(x, y byte) []pixel {
 	// where 7 is the bottom row.
 	row := y % 8
 	tileData := p.getTileRowData(tileAddr, row)
-	pixels := make([]pixel, 8)
+	pixels := make([]pixelData, 8)
 	for _, paletteIndex := range tileData {
-		px := pixel{paletteIndex, bg}
+		px := pixelData{paletteIndex, bg}
 		pixels = append(pixels, px)
 	}
 	return pixels
@@ -228,30 +228,30 @@ func (p *PPU) getTileRowData(tileAddr uint16, row byte) []byte {
 // colored with up to four different colors. If a tile is a sprite, color 4
 // is always colored as transparent.
 // In the original Gameboy, there are only 4 colors total to choose from.
-type palette map[byte]Color
+type palette map[byte]Pixel
 
 func (p *PPU) getBGPalette() palette {
 	var bgpAddr uint16 = 0xFF47
 	b := p.mem.Rb(bgpAddr)
-	pal := map[byte]Color{
-		3: Color(b & 0b1100_0000 >> 6),
-		2: Color(b & 0b0011_0000 >> 4),
-		1: Color(b & 0b0000_1100 >> 2),
-		0: Color(b & 0b0000_0011),
+	pal := map[byte]Pixel{
+		3: Pixel(b & 0b1100_0000 >> 6),
+		2: Pixel(b & 0b0011_0000 >> 4),
+		1: Pixel(b & 0b0000_1100 >> 2),
+		0: Pixel(b & 0b0000_0011),
 	}
 	return palette(pal)
 }
 
-type Color byte
+type Pixel byte
 
 const (
-	White     Color = 0
+	White     Pixel = 0
 	LightGray       = 1
 	DarkGray        = 2
 	Black           = 3
 )
 
-type pixel struct {
+type pixelData struct {
 	colorNumber   byte
 	paletteNumber paletteNumber
 }
@@ -334,10 +334,10 @@ func (p *PPU) getWindowY() byte {
 type Screen []byte
 
 type pixelFifo struct {
-	fifo []pixel
+	fifo []pixelData
 }
 
-func (pf *pixelFifo) overlay(sprite []pixel) {
+func (pf *pixelFifo) overlay(sprite []pixelData) {
 	// overlay the sprite's pixels on top of the leftmost 8 pixels in the fifo
 	for i, px := range sprite {
 		// Sprite color #0 is transparent -- don't overlay it.
@@ -348,21 +348,21 @@ func (pf *pixelFifo) overlay(sprite []pixel) {
 	}
 }
 
-func (pf *pixelFifo) dequeue() (pixel, error) {
+func (pf *pixelFifo) dequeue() (pixelData, error) {
 	if len(pf.fifo) > 0 {
 		px := pf.fifo[0]
 		pf.fifo = pf.fifo[1:]
 		return px, nil
 	}
-	return pixel{}, fmt.Errorf("Pixel fifo is empty")
+	return pixelData{}, fmt.Errorf("Pixel fifo is empty")
 }
 
-func (pf *pixelFifo) addTile(tile []pixel) {
+func (pf *pixelFifo) addTile(tile []pixelData) {
 	pf.fifo = append(pf.fifo, tile...)
 }
 
 func (pf *pixelFifo) clear() {
-	pf.fifo = make([]pixel, 0)
+	pf.fifo = make([]pixelData, 0)
 }
 
 func (pf *pixelFifo) size() int {

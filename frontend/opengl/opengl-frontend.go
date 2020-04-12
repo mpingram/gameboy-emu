@@ -14,9 +14,9 @@ const scale = 3
 const width = 160
 const height = 144
 
-// gbColorsToRGB converts the screen data from the gameboy, which are single-byte
+// gbPixelsToRGB converts the screen data from the gameboy, which are single-byte
 // color identifiers, into RGB pixels that can be fed to openGL.
-func gbColorsToRGB(colors []ppu.Color) []byte {
+func gbPixelsToRGB(colors []ppu.Pixel) []byte {
 	pixels := make([]byte, 0)
 	for _, c := range colors {
 		switch c {
@@ -44,7 +44,7 @@ var (
 	eboIndices    []uint32
 )
 
-func ConnectVideo(screens <-chan []ppu.Color) {
+func ConnectVideo(screens <-chan []ppu.Pixel) {
 	// ensure that this runs on main thread
 	runtime.LockOSThread()
 
@@ -70,25 +70,25 @@ func ConnectVideo(screens <-chan []ppu.Color) {
 
 	// Initialize OpenGL
 	vertexShaderSource := []byte(`
-	attribute vec3 a_position;
-	attribute vec2 a_texcoord;
+    attribute vec3 a_position;
+    attribute vec2 a_texcoord;
 
-	varying vec2 v_texcoord;
+    varying vec2 v_texcoord;
 
-	void main() {
-		gl_Position = vec4(a_position, 1.0);
-		v_texcoord = a_texcoord;
-	}
-	`)
+    void main() {
+        gl_Position = vec4(a_position, 1.0);
+        v_texcoord = a_texcoord;
+    }
+    `)
 
 	fragShaderSource := []byte(`
-	varying vec2 v_texcoord;
-	uniform sampler2D u_texture;
+    varying vec2 v_texcoord;
+    uniform sampler2D u_texture;
 
-	void main() {
-		gl_FragColor = texture2D(u_texture, v_texcoord);
-	}
-	`)
+    void main() {
+        gl_FragColor = texture2D(u_texture, v_texcoord);
+    }
+    `)
 
 	// opengl initialization
 	// ====================================
@@ -255,38 +255,46 @@ func ConnectVideo(screens <-chan []ppu.Color) {
 
 	// Main loop: render screens. Does not return -- any calling code must
 	// use a separate goroutine to do work.
-	for screen := range screens {
-		// convert screen to RGB pixels
-		pixels := gbColorsToRGB(screen)
-		gl.ClearColor(0.9, 0.9, 0.7, 1.0) // gross pale yellow
-		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-		gl.UseProgram(shaderProgram)
+	for {
+		select {
+		case screen := <-screens:
+			// convert screen to RGB pixels
+			pixels := gbPixelsToRGB(screen)
+			gl.ClearColor(0.9, 0.9, 0.7, 1.0) // gross pale yellow
+			gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+			gl.UseProgram(shaderProgram)
 
-		gl.ActiveTexture(gl.TEXTURE0)
-		gl.BindTexture(gl.TEXTURE_2D, screenTexture)
+			gl.ActiveTexture(gl.TEXTURE0)
+			gl.BindTexture(gl.TEXTURE_2D, screenTexture)
 
-		// replace the current texture with new texture
-		gl.TexSubImage2D(
-			gl.TEXTURE_2D,
-			0,                // mipmap level 0
-			0,                // x offset
-			0,                // y offset
-			160,              // width
-			144,              // height
-			gl.RGB,           // format
-			gl.UNSIGNED_BYTE, // type,
-			gl.Ptr(pixels),   // data
-		)
-		checkGLErr()
+			// replace the current texture with new texture
+			gl.TexSubImage2D(
+				gl.TEXTURE_2D,
+				0,                // mipmap level 0
+				0,                // x offset
+				0,                // y offset
+				160,              // width
+				144,              // height
+				gl.RGB,           // format
+				gl.UNSIGNED_BYTE, // type,
+				gl.Ptr(pixels),   // data
+			)
+			checkGLErr()
 
-		numVerticesToDraw := int32(6)
-		gl.DrawElements(gl.TRIANGLES, numVerticesToDraw, gl.UNSIGNED_INT, gl.PtrOffset(0))
-
-		window.SwapBuffers()
-		glfw.PollEvents()
-		// Break out of loop on esc keypress
-		if k := window.GetKey(glfw.KeyEscape); k == glfw.Press {
-			break
+			numVerticesToDraw := int32(6)
+			gl.DrawElements(gl.TRIANGLES, numVerticesToDraw, gl.UNSIGNED_INT, gl.PtrOffset(0))
+			window.SwapBuffers()
+			glfw.PollEvents()
+			// Break out of loop on esc keypress
+			if k := window.GetKey(glfw.KeyEscape); k == glfw.Press {
+				return
+			}
+		default:
+			glfw.PollEvents()
+			// Break loop and exit on esc keypress
+			if k := window.GetKey(glfw.KeyEscape); k == glfw.Press {
+				return
+			}
 		}
 	}
 }

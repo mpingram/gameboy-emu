@@ -1,8 +1,8 @@
 package ppu
 
-func (p *PPU) drawScanline(ly, scX, scY byte) []Color {
+func (p *PPU) drawScanline(ly, scX, scY byte) []Pixel {
 	// NOTE this implementation currently completely ignores the Window and sprites.
-	var scanline []Color
+	var scanline []Pixel
 	y := scY + ly // y is the global y-coordinate of the current scanline.
 
 	// Initialize the pixel fifo with pixels from the tile that intersects with scX.
