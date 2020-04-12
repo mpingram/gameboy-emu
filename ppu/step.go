@@ -25,18 +25,30 @@ func (p *PPU) Step() {
 		switch p.cycles {
 		case 0:
 			p.setMode(OAMSearch)
+			if p.readLCDStat().Mode != OAMSearch {
+				panic(fmt.Sprintf("Mode should be OAMSearch; Got %v", p.readLCDStat().Mode))
+			}
 		case 80:
 			p.setMode(PixelDrawing)
-			scanline := p.drawScanline(p.readLCDControl(), p.getLY(), p.getScrollX(), p.getScrollY())
+			if p.readLCDStat().Mode != PixelDrawing {
+				panic(fmt.Sprintf("Mode should be PixelDrawing; Got %v", p.readLCDStat().Mode))
+			}
+			scanline := p.drawScanline(p.getLY(), p.getScrollX(), p.getScrollY())
 			p.screen = append(p.screen, scanline...)
 		case 160:
 			p.setMode(HBlank)
-		case 456:
+			if p.readLCDStat().Mode != HBlank {
+				panic(fmt.Sprintf("Mode should be HBlank; Got %v", p.readLCDStat().Mode))
+			}
+		case 456 - 1:
 			if p.getLY() < 143 { // 143 is last onscreen scanline
 				p.setMode(OAMSearch)
 				p.setLY(p.getLY() + 1)
 			} else if p.getLY() == 143 {
 				p.setMode(VBlank)
+				if p.readLCDStat().Mode != VBlank {
+					panic(fmt.Sprintf("Mode should be VBlank; Got %v", p.readLCDStat().Mode))
+				}
 				// send screen to output channel
 				p.videoOut <- p.screen
 				p.screen = make([]byte, 0)
@@ -57,27 +69,27 @@ func (p *PPU) Step() {
 				p.setLY(0)
 				p.setMode(OAMSearch)
 			} else {
-				panic(fmt.Sprintf("LY is %v, should be less than 153", p.getLY(), lcdstat.Mode))
+				panic(fmt.Sprintf("LY is %v, should be less than 153", p.getLY()))
 			}
 		}
 		return
 	}
 }
 
-func (p *PPU) drawScanline(lcdc LCDControl, ly, scX, scY byte) []byte {
+func (p *PPU) drawScanline(ly, scX, scY byte) []byte {
 	// NOTE this implementation currently completely ignores the Window and sprites.
 	var scanline []byte
 	y := scY + ly // y is the global y-coordinate of the current scanline.
 
 	// Initialize the pixel fifo with pixels from the tile that intersects with scX.
 	pixelFifo := pixelFifo{}
-	bgTile := p.getBackgroundTileRow(scX-(scX%8), y, lcdc)
+	bgTile := p.getBackgroundTileRow(scX-(scX%8), y)
 	pixelFifo.addTile(bgTile)
 
 	for x := scX - scX%8; x < scX+screenWidth; x++ {
 		// Every 8 pixels (including x=0), fill the pixel fifo with the next tile.
 		if x%8 == 0 {
-			tile := p.getBackgroundTileRow(x+8, y, lcdc)
+			tile := p.getBackgroundTileRow(x+8, y)
 			pixelFifo.addTile(tile)
 		}
 		// Dequeue a pixel from the pixel fifo.
@@ -88,7 +100,7 @@ func (p *PPU) drawScanline(lcdc LCDControl, ly, scX, scY byte) []byte {
 		// If x is onscreen, draw the pixel to the current scanline.
 		if x >= scX {
 			palette := p.getBGPalette()
-			color := palette[px.color]
+			color := palette[px.colorNumber]
 			rgb := toRGB(color)
 			scanline = append(scanline, rgb...)
 		}

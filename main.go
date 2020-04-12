@@ -35,7 +35,7 @@ func main() {
 	paused := false
 	// cpu goroutine
 	go func() {
-		breakpoint := uint16(0x50)
+		breakpoint := uint16(0x1000)
 		var instr cpu.Instruction
 		for {
 			<-cpuClock.C

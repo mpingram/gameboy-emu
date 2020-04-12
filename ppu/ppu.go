@@ -26,13 +26,12 @@ type PPU struct {
 	cycles   int
 	wX, wY   byte
 	scX, scY byte
-	lcdc     LCDControl
 	screen   []byte
 	videoOut chan []byte
 }
 
 func New(mem MemoryReadWriter, videoOut chan []byte) *PPU {
-	ppu := &PPU{mem, 0, 0, 0, 0, 0, LCDControl{}, []byte{}, videoOut}
+	ppu := &PPU{mem, 0, 0, 0, 0, 0, []byte{}, videoOut}
 	ppu.setMode(OAMSearch)
 	return ppu
 }
@@ -144,18 +143,11 @@ func (p *PPU) readLCDStat() LCDStat {
 	}
 }
 
-type paletteNumber byte
-
-const (
-	bg   paletteNumber = 2
-	obj0 paletteNumber = 0
-	obj1               = 1
-)
-
 // getBackgroundTileRow returns the 8 pixels of a row of a background tile located at
 // coordinate x, y.
-func (p *PPU) getBackgroundTileRow(x, y byte, lcdc LCDControl) []pixel {
+func (p *PPU) getBackgroundTileRow(x, y byte) []pixel {
 	// check lcdc to see where bg tile map is stored
+	lcdc := p.readLCDControl()
 	var tileMapLocation uint16
 	if lcdc.BGTileMapSelect == false {
 		tileMapLocation = 0x9800
@@ -181,7 +173,6 @@ func (p *PPU) getBackgroundTileRow(x, y byte, lcdc LCDControl) []pixel {
 	// Read the correct byte of the tile map to get the address of the tile data
 	// (Remember that the address of the tile data is an offset, not a full uint16 addresss.)
 	tileAddrOffset := p.mem.Rb(tileMapLocation + uint16(offset))
-	// tileAddrOffset := p.mem.Rb(0x9904)
 	var tileAddr uint16
 	if lcdc.TileAddressingMode == true {
 		// convert addrOffset to a signed byte
@@ -198,8 +189,8 @@ func (p *PPU) getBackgroundTileRow(x, y byte, lcdc LCDControl) []pixel {
 	row := y % 8
 	tileData := p.getTileRowData(tileAddr, row)
 	pixels := make([]pixel, 8)
-	for _, colorNumber := range tileData {
-		px := pixel{colorNumber, bg}
+	for _, paletteIndex := range tileData {
+		px := pixel{paletteIndex, bg}
 		pixels = append(pixels, px)
 	}
 	return pixels
@@ -207,14 +198,8 @@ func (p *PPU) getBackgroundTileRow(x, y byte, lcdc LCDControl) []pixel {
 
 // getTileRowData returns the color numbers, from left to right, of a certain row of a tile located
 // at a location in video memory determined by `addrOffset`.
-// The way the tile's memory address is determined from `addrOffset` depends on the
-// TileAddressingMode bit of the LCDControl register.
-// If the bit is 0, the address is determined using the '$8800' method:
-// `addrOffset` is treated as a signed byte and the memory address is $8800 +/- addrOffset.
-// If the bit is 1, the address is determined using the '$8000' method (the same method sprites use):
-// `addrOffset` is treated as an unsigned byte and the memory address is $8000 + addrOffset.
 // Tile rows are 0-indexed and run from top to bottom, so the bottom row of a tile is row 7.
-func (p *PPU) getTileRowData(tileAddr uint16, row byte) []colorNumber {
+func (p *PPU) getTileRowData(tileAddr uint16, row byte) []byte {
 	if row > 7 {
 		panic(fmt.Sprintf("Got tile row > 7: %v", row))
 	}
@@ -223,7 +208,7 @@ func (p *PPU) getTileRowData(tileAddr uint16, row byte) []colorNumber {
 	// to bottom. The bytes that represents row n of the tile are at (tileAddr + n*2)
 	b1 := p.mem.Rb(tileAddr + uint16(row*2))
 	b2 := p.mem.Rb(tileAddr + uint16(row*2) + 1)
-	tileData := make([]colorNumber, 8)
+	tileData := make([]byte, 8)
 	for i := 7; i >= 0; i-- {
 		// WARNING Possibly buggy
 		// https://gbdev.gg8.se/wiki/articles/Video_Display#VRAM_Tile_Data
@@ -233,7 +218,7 @@ func (p *PPU) getTileRowData(tileAddr uint16, row byte) []colorNumber {
 		lo := (b1 & mask) >> i
 		hi := (b2 & mask) >> i
 		color := (hi << 1) | lo
-		tileData = append(tileData, colorNumber(color))
+		tileData = append(tileData, color)
 	}
 
 	return tileData
@@ -245,42 +230,16 @@ func (p *PPU) getTileRowData(tileAddr uint16, row byte) []colorNumber {
 // colored with up to four different colors. If a tile is a sprite, color 4
 // is always colored as transparent.
 // In the original Gameboy, there are only 4 colors total to choose from.
-type palette map[colorNumber]color
-
-var bgPalette, obj0Palette, obj1Palette *palette
+type palette map[byte]color
 
 func (p *PPU) getBGPalette() palette {
 	var bgpAddr uint16 = 0xFF47
 	b := p.mem.Rb(bgpAddr)
-	pal := map[colorNumber]color{
-		col3: color(b & 0b1100_0000 >> 6),
-		col2: color(b & 0b0011_0000 >> 4),
-		col1: color(b & 0b0000_1100 >> 2),
-		col0: color(b & 0b0000_0011),
-	}
-	return palette(pal)
-}
-
-func (p *PPU) getObj0Palette() palette {
-	var obp0Addr uint16 = 0xFF48
-	b := p.mem.Rb(obp0Addr)
-	pal := map[colorNumber]color{
-		col3: color(b & 0b1100_0000 >> 6),
-		col2: color(b & 0b0011_0000 >> 4),
-		col1: color(b & 0b0000_1100 >> 2),
-		col0: color(b & 0b0000_0011),
-	}
-	return palette(pal)
-}
-
-func (p *PPU) getObj1Palette() palette {
-	var obp1Addr uint16 = 0xff49
-	b := p.mem.Rb(obp1Addr)
-	pal := map[colorNumber]color{
-		col3: color(b & 0b1100_0000 >> 6),
-		col2: color(b & 0b0011_0000 >> 4),
-		col1: color(b & 0b0000_1100 >> 2),
-		col0: color(b & 0b0000_0011),
+	pal := map[byte]color{
+		3: color(b & 0b1100_0000 >> 6),
+		2: color(b & 0b0011_0000 >> 4),
+		1: color(b & 0b0000_1100 >> 2),
+		0: color(b & 0b0000_0011),
 	}
 	return palette(pal)
 }
@@ -294,19 +253,18 @@ const (
 	black           = 3
 )
 
-type colorNumber byte
-
-const (
-	col0 colorNumber = 0
-	col1             = 1
-	col2             = 2
-	col3             = 3
-)
-
 type pixel struct {
-	color         colorNumber
+	colorNumber   byte
 	paletteNumber paletteNumber
 }
+
+type paletteNumber byte
+
+const (
+	bg   paletteNumber = 2
+	obj0 paletteNumber = 0
+	obj1               = 1
+)
 
 // getYScroll gets the y-coordinate of the top-left of the LCD screen.
 // Reads the SCY ($FF42) memory register.
@@ -384,9 +342,9 @@ type pixelFifo struct {
 func (pf *pixelFifo) overlay(sprite []pixel) {
 	// overlay the sprite's pixels on top of the leftmost 8 pixels in the fifo
 	for i, px := range sprite {
-		// Sprite color 0 is transparent -- don't overlay it.
+		// Sprite color #0 is transparent -- don't overlay it.
 		// TODO implement OBJ-to-BG priority (https://gbdev.gg8.se/wiki/articles/Video_Display#FF48_-_OBP0_-_Object_Palette_0_Data_.28R.2FW.29_-_Non_CGB_Mode_Only)
-		if px.color != 0 {
+		if px.colorNumber != 0 {
 			pf.fifo[i] = px
 		}
 	}
