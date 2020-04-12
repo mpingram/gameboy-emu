@@ -24,14 +24,12 @@ type MemoryWriter interface {
 type PPU struct {
 	mem      MemoryReadWriter
 	cycles   int
-	wX, wY   byte
-	scX, scY byte
-	screen   []byte
-	videoOut chan []byte
+	screen   []Color
+	videoOut chan []Color
 }
 
-func New(mem MemoryReadWriter, videoOut chan []byte) *PPU {
-	ppu := &PPU{mem, 0, 0, 0, 0, 0, []byte{}, videoOut}
+func New(mem MemoryReadWriter, videoOut chan []Color) *PPU {
+	ppu := &PPU{mem, 0, []Color{}, videoOut}
 	ppu.setMode(OAMSearch)
 	return ppu
 }
@@ -230,27 +228,27 @@ func (p *PPU) getTileRowData(tileAddr uint16, row byte) []byte {
 // colored with up to four different colors. If a tile is a sprite, color 4
 // is always colored as transparent.
 // In the original Gameboy, there are only 4 colors total to choose from.
-type palette map[byte]color
+type palette map[byte]Color
 
 func (p *PPU) getBGPalette() palette {
 	var bgpAddr uint16 = 0xFF47
 	b := p.mem.Rb(bgpAddr)
-	pal := map[byte]color{
-		3: color(b & 0b1100_0000 >> 6),
-		2: color(b & 0b0011_0000 >> 4),
-		1: color(b & 0b0000_1100 >> 2),
-		0: color(b & 0b0000_0011),
+	pal := map[byte]Color{
+		3: Color(b & 0b1100_0000 >> 6),
+		2: Color(b & 0b0011_0000 >> 4),
+		1: Color(b & 0b0000_1100 >> 2),
+		0: Color(b & 0b0000_0011),
 	}
 	return palette(pal)
 }
 
-type color byte
+type Color byte
 
 const (
-	white     color = 0
-	lightGray       = 1
-	darkGray        = 2
-	black           = 3
+	White     Color = 0
+	LightGray       = 1
+	DarkGray        = 2
+	Black           = 3
 )
 
 type pixel struct {
@@ -369,18 +367,4 @@ func (pf *pixelFifo) clear() {
 
 func (pf *pixelFifo) size() int {
 	return len(pf.fifo)
-}
-
-func toRGB(c color) []byte {
-	switch c {
-	case white:
-		return []byte{255, 255, 255}
-	case lightGray:
-		return []byte{151, 150, 149}
-	case darkGray:
-		return []byte{76, 75, 74}
-	case black:
-		return []byte{0, 0, 0}
-	}
-	panic(fmt.Sprintf("toRGB: Got bad color: %v", c))
 }

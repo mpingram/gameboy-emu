@@ -25,7 +25,7 @@ func main() {
 		panic(err)
 	}
 
-	videoChannel := make(chan []byte, 1)
+	videoChannel := make(chan []ppu.Color, 1)
 	m := mmu.New(mmu.MMUOptions{BootRom: bootRom, GameRom: gameRom})
 	p := ppu.New(m.PPUInterface, videoChannel)
 	c := cpu.New(m.CPUInterface)
@@ -35,7 +35,7 @@ func main() {
 	paused := false
 	// cpu goroutine
 	go func() {
-		breakpoint := uint16(0x1000)
+		breakpoint := uint16(0x008b)
 		var instr cpu.Instruction
 		for {
 			<-cpuClock.C

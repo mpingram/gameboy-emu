@@ -7,9 +7,33 @@ import (
 
 	"github.com/go-gl/gl/v2.1/gl"
 	"github.com/go-gl/glfw/v3.2/glfw"
+	"github.com/mpingram/gameboy-emu/ppu"
 )
 
 const scale = 3
+const width = 160
+const height = 144
+
+// gbColorsToRGB converts the screen data from the gameboy, which are single-byte
+// color identifiers, into RGB pixels that can be fed to openGL.
+func gbColorsToRGB(colors []ppu.Color) []byte {
+	pixels := make([]byte, 0)
+	for _, c := range colors {
+		switch c {
+		case ppu.White:
+			pixels = append(pixels, 255, 255, 255)
+		case ppu.LightGray:
+			pixels = append(pixels, 151, 150, 149)
+		case ppu.DarkGray:
+			pixels = append(pixels, 76, 75, 74)
+		case ppu.Black:
+			pixels = append(pixels, 0, 0, 0)
+		default:
+			panic(fmt.Sprintf("toRGB: Got bad color: %v", c))
+		}
+	}
+	return pixels
+}
 
 var (
 	window        *glfw.Window
@@ -20,7 +44,7 @@ var (
 	eboIndices    []uint32
 )
 
-func ConnectVideo(screens <-chan []byte) {
+func ConnectVideo(screens <-chan []ppu.Color) {
 	// ensure that this runs on main thread
 	runtime.LockOSThread()
 
@@ -50,7 +74,7 @@ func ConnectVideo(screens <-chan []byte) {
 	attribute vec2 a_texcoord;
 
 	varying vec2 v_texcoord;
-		
+
 	void main() {
 		gl_Position = vec4(a_position, 1.0);
 		v_texcoord = a_texcoord;
@@ -232,6 +256,8 @@ func ConnectVideo(screens <-chan []byte) {
 	// Main loop: render screens. Does not return -- any calling code must
 	// use a separate goroutine to do work.
 	for screen := range screens {
+		// convert screen to RGB pixels
+		pixels := gbColorsToRGB(screen)
 		gl.ClearColor(0.9, 0.9, 0.7, 1.0) // gross pale yellow
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 		gl.UseProgram(shaderProgram)
@@ -249,7 +275,7 @@ func ConnectVideo(screens <-chan []byte) {
 			144,              // height
 			gl.RGB,           // format
 			gl.UNSIGNED_BYTE, // type,
-			gl.Ptr(screen),   // data
+			gl.Ptr(pixels),   // data
 		)
 		checkGLErr()
 
@@ -269,47 +295,6 @@ func checkGLErr() {
 	// 'handle' errors
 	for err := gl.GetError(); err != gl.NO_ERROR; err = gl.GetError() {
 		fmt.Printf("Encountered openGL error %v\n", err)
-	}
-}
-
-// Render takes a `screen`, which is a slice of bytes which represent
-// 160x144 RGB pixels.
-func render(screen []byte, screenTexture, shaderProgram uint32, window *glfw.Window) {
-	gl.ClearColor(0.9, 0.9, 0.7, 1.0)
-	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-
-	gl.ActiveTexture(gl.TEXTURE0)
-	gl.BindTexture(gl.TEXTURE_2D, screenTexture)
-
-	// replace the current texture with new texture
-	gl.TexSubImage2D(
-		gl.TEXTURE_2D,
-		0,                // mipmap level 0
-		0,                // x offset
-		0,                // y offset
-		160,              // width
-		144,              // height
-		gl.RGB,           // format
-		gl.UNSIGNED_BYTE, // type,
-		gl.Ptr(screen),   // data
-	)
-	checkGLErr()
-
-	// use our screen shader program
-	gl.UseProgram(shaderProgram)
-	// draw the vertices in our vertex array object as triangles
-	// containing our screen-sized rectangle
-	// gl.BindVertexArray(vao)
-	numVerticesToDraw := int32(6)
-	gl.DrawElements(gl.TRIANGLES, numVerticesToDraw, gl.UNSIGNED_INT, gl.PtrOffset(0))
-
-	// render screen
-	window.SwapBuffers()
-
-	// 'handle' errors
-	if err := gl.GetError(); err != gl.NO_ERROR {
-		fmt.Println("Encountered openGL error in render:")
-		panic(err)
 	}
 }
 
