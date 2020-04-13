@@ -25,9 +25,8 @@ func main() {
 		panic(err)
 	}
 
-	videoChannel := make(chan []ppu.Pixel, 1)
 	m := mmu.New(mmu.MMUOptions{BootRom: bootRom, GameRom: gameRom})
-	p := ppu.New(m.PPUInterface, videoChannel)
+	p := ppu.New(m.PPUInterface)
 	c := cpu.New(m.CPUInterface)
 
 	cpuClock := time.NewTicker(time.Nanosecond)
@@ -35,7 +34,7 @@ func main() {
 	paused := false
 	// cpu goroutine
 	go func() {
-		breakpoint := uint16(0x008b)
+		breakpoint := uint16(0x0100)
 		var instr cpu.Instruction
 		for {
 			<-cpuClock.C
@@ -73,7 +72,7 @@ func main() {
 		}
 	}()
 
-	frontend.ConnectVideo(videoChannel)
+	frontend.ConnectVideo(p.VideoOut)
 
 }
 

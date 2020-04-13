@@ -1,3 +1,1 @@
-Refactor ppu code
-
-- Throw out all code not related to drawing bg -- might bring it back later
+Test ppu.drawScanline

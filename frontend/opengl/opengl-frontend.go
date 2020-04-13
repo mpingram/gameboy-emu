@@ -10,30 +10,9 @@ import (
 	"github.com/mpingram/gameboy-emu/ppu"
 )
 
-const scale = 3
+const scale = 10
 const width = 160
 const height = 144
-
-// gbPixelsToRGB converts the screen data from the gameboy, which are single-byte
-// color identifiers, into RGB pixels that can be fed to openGL.
-func gbPixelsToRGB(colors []ppu.Pixel) []byte {
-	pixels := make([]byte, 0)
-	for _, c := range colors {
-		switch c {
-		case ppu.White:
-			pixels = append(pixels, 255, 255, 255)
-		case ppu.LightGray:
-			pixels = append(pixels, 151, 150, 149)
-		case ppu.DarkGray:
-			pixels = append(pixels, 76, 75, 74)
-		case ppu.Black:
-			pixels = append(pixels, 0, 0, 0)
-		default:
-			panic(fmt.Sprintf("toRGB: Got bad color: %v", c))
-		}
-	}
-	return pixels
-}
 
 var (
 	window        *glfw.Window
@@ -44,7 +23,7 @@ var (
 	eboIndices    []uint32
 )
 
-func ConnectVideo(screens <-chan []ppu.Pixel) {
+func openGLFWWindow() {
 	// ensure that this runs on main thread
 	runtime.LockOSThread()
 
@@ -54,7 +33,6 @@ func ConnectVideo(screens <-chan []ppu.Pixel) {
 		fmt.Println("Error initializing GLFW")
 		panic(err)
 	}
-	defer glfw.Terminate()
 	w, err := glfw.CreateWindow(160*scale, 144*scale, "Gameboy", nil, nil)
 	window = w
 	if err != nil {
@@ -252,38 +230,64 @@ func ConnectVideo(screens <-chan []ppu.Pixel) {
 	gl.Uniform1i(texUniform, 0)
 	checkGLErr()
 	// =====================================
+}
 
-	// Main loop: render screens. Does not return -- any calling code must
+func render(screen []ppu.Pixel) {
+	// Render the screen passed in.
+	// convert screen to RGB pixels
+	pixels := gbPixelsToRGB(screen)
+	gl.ClearColor(0.9, 0.9, 0.7, 1.0) // gross pale yellow
+	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+	gl.UseProgram(shaderProgram)
+
+	gl.ActiveTexture(gl.TEXTURE0)
+	gl.BindTexture(gl.TEXTURE_2D, screenTexture)
+
+	// replace the current texture with new texture
+	gl.TexSubImage2D(
+		gl.TEXTURE_2D,
+		0,                // mipmap level 0
+		0,                // x offset
+		0,                // y offset
+		160,              // width
+		144,              // height
+		gl.RGB,           // format
+		gl.UNSIGNED_BYTE, // type,
+		gl.Ptr(pixels),   // data
+	)
+	checkGLErr()
+
+	numVerticesToDraw := int32(6)
+	gl.DrawElements(gl.TRIANGLES, numVerticesToDraw, gl.UNSIGNED_INT, gl.PtrOffset(0))
+	window.SwapBuffers()
+}
+
+func Render(screen []ppu.Pixel) {
+	runtime.LockOSThread()
+	openGLFWWindow()
+	defer glfw.Terminate()
+	render(screen)
+	for {
+		window.SwapBuffers()
+		glfw.PollEvents()
+		// Break loop and exit on esc keypress
+		if k := window.GetKey(glfw.KeyEscape); k == glfw.Press {
+			return
+		}
+	}
+}
+
+func ConnectVideo(screens <-chan []ppu.Pixel) {
+	runtime.LockOSThread()
+	openGLFWWindow()
+	defer glfw.Terminate()
+	// Main loop: render screens as they come in.
+	// Does not return -- any calling code must
 	// use a separate goroutine to do work.
 	for {
 		select {
 		case screen := <-screens:
-			// convert screen to RGB pixels
-			pixels := gbPixelsToRGB(screen)
-			gl.ClearColor(0.9, 0.9, 0.7, 1.0) // gross pale yellow
-			gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-			gl.UseProgram(shaderProgram)
-
-			gl.ActiveTexture(gl.TEXTURE0)
-			gl.BindTexture(gl.TEXTURE_2D, screenTexture)
-
-			// replace the current texture with new texture
-			gl.TexSubImage2D(
-				gl.TEXTURE_2D,
-				0,                // mipmap level 0
-				0,                // x offset
-				0,                // y offset
-				160,              // width
-				144,              // height
-				gl.RGB,           // format
-				gl.UNSIGNED_BYTE, // type,
-				gl.Ptr(pixels),   // data
-			)
-			checkGLErr()
-
-			numVerticesToDraw := int32(6)
-			gl.DrawElements(gl.TRIANGLES, numVerticesToDraw, gl.UNSIGNED_INT, gl.PtrOffset(0))
-			window.SwapBuffers()
+			render(screen)
 			glfw.PollEvents()
 			// Break out of loop on esc keypress
 			if k := window.GetKey(glfw.KeyEscape); k == glfw.Press {
@@ -291,7 +295,7 @@ func ConnectVideo(screens <-chan []ppu.Pixel) {
 			}
 		default:
 			glfw.PollEvents()
-			// Break loop and exit on esc keypress
+			// Break out of loop on esc keypress
 			if k := window.GetKey(glfw.KeyEscape); k == glfw.Press {
 				return
 			}
@@ -328,4 +332,25 @@ func compileShader(sourceBytes []byte, shaderType uint32) (uint32, error) {
 	}
 
 	return shader, nil
+}
+
+// gbPixelsToRGB converts the screen data from the gameboy, which are single-byte
+// color identifiers, into RGB pixels that can be fed to openGL.
+func gbPixelsToRGB(colors []ppu.Pixel) []byte {
+	pixels := make([]byte, 0)
+	for _, c := range colors {
+		switch c {
+		case ppu.White:
+			pixels = append(pixels, 255, 255, 255)
+		case ppu.LightGray:
+			pixels = append(pixels, 151, 150, 149)
+		case ppu.DarkGray:
+			pixels = append(pixels, 76, 75, 74)
+		case ppu.Black:
+			pixels = append(pixels, 0, 0, 0)
+		default:
+			panic(fmt.Sprintf("toRGB: Got bad color: %v", c))
+		}
+	}
+	return pixels
 }

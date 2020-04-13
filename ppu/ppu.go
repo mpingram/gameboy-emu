@@ -25,10 +25,11 @@ type PPU struct {
 	mem      MemoryReadWriter
 	cycles   int
 	screen   []Pixel
-	videoOut chan []Pixel
+	VideoOut chan []Pixel
 }
 
-func New(mem MemoryReadWriter, videoOut chan []Pixel) *PPU {
+func New(mem MemoryReadWriter) *PPU {
+	videoOut := make(chan []Pixel, 1) // videoOut channel is buffered by one screen
 	ppu := &PPU{mem, 0, []Pixel{}, videoOut}
 	ppu.setMode(OAMSearch)
 	return ppu
@@ -42,6 +43,21 @@ const screenWidth = 160
 // The drawing mode cycles between OAMSearch, PixelDrawing, and HBlank
 // for each scanline, and enters VBlank once a full screen has been drawn.
 type Mode int
+
+func (mode Mode) String() string {
+	switch mode {
+	case 2:
+		return "OAMSearch"
+	case 3:
+		return "PixelDrawing"
+	case 0:
+		return "HBlank"
+	case 1:
+		return "VBlank"
+	default:
+		return "Unknown Mode"
+	}
+}
 
 const (
 	// OAMSearch (mode 2) is the mode in which the PPU searches through the Object Attribute Memory
@@ -172,7 +188,8 @@ func (p *PPU) getBackgroundTileRow(x, y byte) []pixelData {
 	// (Remember that the address of the tile data is an offset, not a full uint16 addresss.)
 	tileAddrOffset := p.mem.Rb(tileMapLocation + uint16(offset))
 	var tileAddr uint16
-	if lcdc.TileAddressingMode == true {
+	// LCDC tileAddressingMode 0 = $8800 1 = $8000
+	if lcdc.TileAddressingMode == false {
 		// convert addrOffset to a signed byte
 		signedAddrOffset := int8(tileAddrOffset)
 		// NOTE this is potentially buggy!
@@ -186,11 +203,12 @@ func (p *PPU) getBackgroundTileRow(x, y byte) []pixelData {
 	// where 7 is the bottom row.
 	row := y % 8
 	tileData := p.getTileRowData(tileAddr, row)
-	pixels := make([]pixelData, 8)
+	pixels := make([]pixelData, 0)
 	for _, paletteIndex := range tileData {
 		px := pixelData{paletteIndex, bg}
 		pixels = append(pixels, px)
 	}
+	// panic(fmt.Sprintf("%v", pixels))
 	return pixels
 }
 
@@ -206,7 +224,7 @@ func (p *PPU) getTileRowData(tileAddr uint16, row byte) []byte {
 	// to bottom. The bytes that represents row n of the tile are at (tileAddr + n*2)
 	b1 := p.mem.Rb(tileAddr + uint16(row*2))
 	b2 := p.mem.Rb(tileAddr + uint16(row*2) + 1)
-	tileData := make([]byte, 8)
+	tileData := make([]byte, 0)
 	for i := 7; i >= 0; i-- {
 		// WARNING Possibly buggy
 		// https://gbdev.gg8.se/wiki/articles/Video_Display#VRAM_Tile_Data
