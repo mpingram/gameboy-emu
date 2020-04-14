@@ -87,7 +87,7 @@ func (p *PPU) setMode(mode Mode) {
 	p.mem.Wb(lcdStatAddr, b)
 }
 
-// LCDControl represents a memory register located at [FIXME address]
+// LCDControl represents a memory register located at 0xFF4
 // which is used to configure the behavior of the PPU while the Gameboy is running.
 // See https://gbdev.gg8.se/wiki/articles/LCDC.
 type LCDControl struct {
@@ -168,25 +168,25 @@ func (p *PPU) getBackgroundTileRow(x, y byte) []pixelData {
 	} else {
 		tileMapLocation = 0x9C00
 	}
-	// calculate byte offset in bg tile map based on x,y
-	offset := (y/8)*32 + (x / 8)
+	// calculate byte offset in bg tile map based on x,y.
+	offset := (uint16(y)/8)*32 + (uint16(x) / 8)
 	// Explanation:
 	// Tile memory is laid out like this:
 	// $9BFF/$9FFF +-------------------+
-	//             |                   |
+	//             |992|993|...   |1023|
 	//             |                   |
 	// 32 tile ptrs|                   |
-	//         |   |32|33|34|...       |
-	//         y   |0 |1 |2 |...       |
+	//         |   |32|33|34|...    |63|
+	//         y   |0 |1 |2 |...    |31|
 	// $9800/$9C00 +--32 tile ptrs-----+
 	// 					x ----->
 	// Where each tile represents a 8x8px area. So the formula for
 	// getting the tile byte offset is floor(y/8)*32 + floor(x/8).
-	// To accommodate wraparound, we set y=y%144 and x=x%160.
+	// Wraparound for x and y is handled by byte overflow.
 
 	// Read the correct byte of the tile map to get the address of the tile data
 	// (Remember that the address of the tile data is an offset, not a full uint16 addresss.)
-	tileAddrOffset := p.mem.Rb(tileMapLocation + uint16(offset))
+	tileAddrOffset := p.mem.Rb(tileMapLocation + offset)
 	var tileAddr uint16
 	// LCDC tileAddressingMode 0 = $8800 1 = $8000
 	if lcdc.TileAddressingMode == false {
@@ -195,9 +195,9 @@ func (p *PPU) getBackgroundTileRow(x, y byte) []pixelData {
 		// NOTE this is potentially buggy!
 		// promote the signed int8 to int in order to add it to 0x8800,
 		// then convert the result back to uint16.
-		tileAddr = uint16(0x8800 + int(signedAddrOffset))
+		tileAddr = uint16(0x8800 + int(signedAddrOffset)*0x10)
 	} else {
-		tileAddr = 0x8000 + uint16(tileAddrOffset)
+		tileAddr = 0x8000 + uint16(tileAddrOffset)*0x10
 	}
 	// The row of the tile that intersects with this y-coordinate. Rows go from 0-7,
 	// where 7 is the bottom row.
@@ -213,13 +213,12 @@ func (p *PPU) getBackgroundTileRow(x, y byte) []pixelData {
 }
 
 // getTileRowData returns the color numbers, from left to right, of a certain row of a tile located
-// at a location in video memory determined by `addrOffset`.
+// at a 16-byte region in video memory.
 // Tile rows are 0-indexed and run from top to bottom, so the bottom row of a tile is row 7.
 func (p *PPU) getTileRowData(tileAddr uint16, row byte) []byte {
 	if row > 7 {
 		panic(fmt.Sprintf("Got tile row > 7: %v", row))
 	}
-
 	// Each 2 bytes of the tile is a row of the tile, and they are stored from top
 	// to bottom. The bytes that represents row n of the tile are at (tileAddr + n*2)
 	b1 := p.mem.Rb(tileAddr + uint16(row*2))
@@ -236,7 +235,6 @@ func (p *PPU) getTileRowData(tileAddr uint16, row byte) []byte {
 		color := (hi << 1) | lo
 		tileData = append(tileData, color)
 	}
-
 	return tileData
 }
 

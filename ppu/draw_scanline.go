@@ -2,7 +2,7 @@ package ppu
 
 func (p *PPU) drawScanline(ly, scX, scY byte) []Pixel {
 	// NOTE this implementation currently completely ignores the Window and sprites.
-	var scanline []Pixel
+	scanline := make([]Pixel, 0, 160)
 	y := scY + ly // y is the global y-coordinate of the current scanline.
 
 	// Initialize the pixel fifo with pixels from the tile that intersects with scX.
@@ -10,6 +10,7 @@ func (p *PPU) drawScanline(ly, scX, scY byte) []Pixel {
 	bgTile := p.getBackgroundTileRow(scX-(scX%8), y)
 	pixelFifo.addTile(bgTile)
 
+	// food for thought... what happens when x is 255?
 	for x := scX - (scX % 8); x < scX+screenWidth; x++ {
 		// Every 8 pixels (including x=0), fill the pixel fifo with the next tile.
 		if x%8 == 0 {

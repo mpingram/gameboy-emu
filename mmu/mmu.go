@@ -40,65 +40,51 @@ const (
 	AddrInterruptEnableReg = 0xFFFF
 )
 
+type MMU struct {
+	Mem          []byte
+	CPUInterface *cpuMemoryInterface
+	PPUInterface *ppuMemoryInterface
+	gameRom      []byte
+	bootRom      []byte
+	mapBootRom   bool
+}
+
 type MMUOptions struct {
 	GameRom io.Reader
 	BootRom io.Reader
 }
 
 func New(opt MMUOptions) *MMU {
-	mmu := &MMU{}
-	mmu.init()
-	if opt.BootRom != nil {
-		mmu.loadBootRom(opt.BootRom)
-	}
-	if opt.GameRom != nil {
-		mmu.gameRom = opt.GameRom
-	}
-	return mmu
-}
-
-type MMU struct {
-	Mem          []byte
-	CPUInterface *cpuMemoryInterface
-	PPUInterface *ppuMemoryInterface
-	gameRom      io.Reader
-}
-
-func (m *MMU) init() {
-	// create backing memory array
-	m.Mem = make([]byte, 0x10000)
-	// zero out all memory (FIXME for true emulation, this should actually randomize all(?) values)
-	for i := 0; i < 0x10000; i++ {
-		m.Mem[i] = 0x00
-	}
-
-	// TODO memory bank switching
-
-	// Set up CPU interface and PPU interface
+	m := &MMU{}
 	m.CPUInterface = &cpuMemoryInterface{mmu: m}
 	m.PPUInterface = &ppuMemoryInterface{mmu: m}
-}
 
-// loadGameRom is called after the boot rom executes. The
-// loading is triggered by a write to $FF50
-func (m *MMU) loadGameRom() {
-	if m.gameRom != nil {
-		// TODO implement bank switching
-		gameRomMemory := m.Mem[0x0000:0x07FF]
-		_, err := m.gameRom.Read(gameRomMemory)
+	m.Mem = make([]byte, 0x10000)
+	if opt.BootRom != nil {
+		// The boot ROM is 0x100 bytes long and is mapped to 0x0-0x100 at boot. When the boot
+		// ROM finishes, it writes to the register 0xFF50, which unmaps the boot rom from memory.
+		// At this point 0x0000-0x0100 becomes mapped to the start of game rom bank 0.
+		m.bootRom = make([]byte, 0x0100)
+		_, err := opt.BootRom.Read(m.bootRom)
 		if err != nil {
-			panic(err)
+			panic(fmt.Errorf("ERR reading boot ROM: %v", err))
 		}
-		m.gameRom = nil
+		m.mapBootRom = true
 	}
-}
-
-func (m *MMU) loadBootRom(rom io.Reader) {
-	bootRomMemory := m.Mem[0x0000:0x0100]
-	_, err := rom.Read(bootRomMemory)
-	if err != nil {
-		panic(err)
+	if opt.GameRom != nil {
+		// The game ROM can contain up to 125 switchable 16kb rom banks in addition to bank 0.
+		// The banks are addressed 0x01-0x7F, although bank numbers 0x20,0x40,0x60 cannot be used.
+		m.gameRom = make([]byte, 0x80*0x4000) // Space for 0x80=128 16kb banks.
+		_, err := opt.GameRom.Read(m.gameRom)
+		if err != nil {
+			panic(fmt.Errorf("ERR reading game ROM: %v", err))
+		}
+		// load game ROM banks 0 and 1 into 0x0000-0x7FFF
+		for i := 0x0; i < 0x8000; i++ {
+			m.Mem[i] = m.gameRom[i]
+		}
 	}
+	return m
 }
 
 func (m *MMU) Dump(out io.Writer) {
@@ -109,17 +95,23 @@ func (m *MMU) Dump(out io.Writer) {
 }
 
 func (m *MMU) rb(addr uint16) byte {
-	return m.Mem[addr]
+	switch {
+	case addr < 0x0100:
+		if m.mapBootRom {
+			return m.bootRom[addr]
+		}
+		return m.Mem[addr]
+	default:
+		return m.Mem[addr]
+	}
 }
 
 func (m *MMU) wb(addr uint16, b byte) {
-	// Handle memory mapped registers
+	// TODO Handle memory mapped registers
 	switch addr {
 	case 0xff50: // writing 0x1 to $ff50 unmaps the boot ROM from memory.
-		fmt.Print("Wrote to $ff50")
 		if b == 0x1 {
-			fmt.Print("Wrote 0x1 to $FF50")
-			m.loadGameRom()
+			m.mapBootRom = false
 		}
 	default:
 		m.Mem[addr] = b

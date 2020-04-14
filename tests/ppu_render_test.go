@@ -1,4 +1,4 @@
-package main
+package tests
 
 import (
 	"testing"
@@ -9,11 +9,6 @@ import (
 	"github.com/mpingram/gameboy-emu/ppu"
 )
 
-var (
-	p *ppu.PPU
-	m *mmu.MMU
-)
-
 func setupTest() (*ppu.PPU, *mmu.MMU) {
 	m := mmu.New(mmu.MMUOptions{})
 	p := ppu.New(m.PPUInterface)
@@ -21,15 +16,19 @@ func setupTest() (*ppu.PPU, *mmu.MMU) {
 }
 
 func Test_renderScreen(t *testing.T) {
+
 	p, m := setupTest()
+	tileOffset := 0x2
 	// Put two tiles (16bytes) in tile memory
 	for i := 0; i < 16; i++ {
-		// The tile is uniformly color 3
-		m.Mem[mmu.AddrVRAMBlock0+i] = 0xFF
+		addr := 0x8000 + (tileOffset * 0x10)
+		// addr := 0x8010
+		// m.Mem[addr+i] = PackedTestTileA[i]
+		m.Mem[addr+i] = PackedTestTileA[i]
 	}
-	for i := 0; i < 16; i++ {
-		m.Mem[mmu.AddrVRAMBlock0+16+i] = 0x01
-	}
+	// for i := 0; i < 16; i++ {
+	// m.Mem[0x08190+i] = PackedTestTileY[i]
+	// }
 	// Set a bg palette in which color 0 is white,
 	// color 1 is lightgray, color 2 is darkgray, and color 3 is black.
 	// https://gbdev.gg8.se/wiki/articles/Video_Display#FF47_-_BGP_-_BG_Palette_Data_.28R.2FW.29_-_Non_CGB_Mode_Only
@@ -46,15 +45,23 @@ func Test_renderScreen(t *testing.T) {
 	// Set Tile addressing method to use the 8000-8FFF range
 	m.Mem[mmu.AddrLCDC] |= 0b0001_0000
 
-	// change the tile mapping at 0,0 to point to tile 1 instead of tile 0.
-	m.Mem[mmu.AddrTileMap0] = 0b0000_0001
-	// The BG tile map for all other spaces should already be set to 0, which
-	// should now indicate this tile we've made
+	// // change the tile mapping at 0,0 to point to tile 1 instead of tile 0.
+	// m.Mem[mmu.AddrTileMap0] = 0x10 // 16 byte offset; 1 tile
+	// Write 'AYYYY' in the middle of the screen
+	y := 10
+	x := 10
+	m.Mem[mmu.AddrTileMap0+(32*y)+x] = byte(tileOffset)
+	// The BG tile map for all other spaces should already be set to 0
 
-	// run the ppu for 60 screens
-	go p.RunFor(456 * 154 * 60)
+	go func() {
+		for i := byte(0); ; i-- {
+			if i%4 == 0 {
+				m.Mem[mmu.AddrSCY] = byte(i / 4)
+			}
+			// m.Mem[mmu.AddrSCX] = 0
+			// run the ppu for 1 screen
+			p.RunFor(456 * 154)
+		}
+	}()
 	frontend.ConnectVideo(p.VideoOut)
-	// render the screen the ppu creates
-	// screen := <-p.VideoOut
-	// frontend.Render(screen)
 }

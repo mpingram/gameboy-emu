@@ -10,7 +10,7 @@ import (
 	"github.com/mpingram/gameboy-emu/ppu"
 )
 
-const scale = 10
+const scale = 4
 const width = 160
 const height = 144
 
@@ -235,7 +235,7 @@ func openGLFWWindow() {
 func render(screen []ppu.Pixel) {
 	// Render the screen passed in.
 	// convert screen to RGB pixels
-	pixels := gbPixelsToRGB(screen)
+	pixels := formatPixelsForOpenGL(screen)
 	gl.ClearColor(0.9, 0.9, 0.7, 1.0) // gross pale yellow
 	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 	gl.UseProgram(shaderProgram)
@@ -334,23 +334,50 @@ func compileShader(sourceBytes []byte, shaderType uint32) (uint32, error) {
 	return shader, nil
 }
 
-// gbPixelsToRGB converts the screen data from the gameboy, which are single-byte
-// color identifiers, into RGB pixels that can be fed to openGL.
-func gbPixelsToRGB(colors []ppu.Pixel) []byte {
-	pixels := make([]byte, 0)
-	for _, c := range colors {
-		switch c {
+// formatPixelsForOpenGL converts the screen data from the gameboy, which are single-byte
+// color identifiers, into RGB pixels that can be fed to openGL. As part of this, it
+// switches the coordinate system from top-left (Gameboy) to bottom-left (OpenGL)
+func formatPixelsForOpenGL(pixels []ppu.Pixel) []byte {
+	openGLPixels := make([]byte, width*height*3)
+	for i, px := range pixels {
+		// convert top-left screen coordinates to bottom-left screen coordinates
+		// GB:
+		//              x = i%w
+		//           +----|----------- w
+		//           |    |
+		// y = i/w   + - -i
+		//			 |
+		//			 h
+		// OpenGL:
+		//			 h
+		//			 |
+		// y = h-i/w + - -tgt
+		//           |    |
+		//           +----|----------- w
+		//              x = i%w
+		tgt := ((height-1)-(i/width))*width + i%width
+		tgt *= 3 // each pixel is represented by 3 bytes(R,G,B)
+		// tgt := i * 3
+		switch px {
 		case ppu.White:
-			pixels = append(pixels, 255, 255, 255)
+			openGLPixels[tgt] = 255
+			openGLPixels[tgt+1] = 255
+			openGLPixels[tgt+2] = 255
 		case ppu.LightGray:
-			pixels = append(pixels, 151, 150, 149)
+			openGLPixels[tgt] = 150
+			openGLPixels[tgt+1] = 150
+			openGLPixels[tgt+2] = 150
 		case ppu.DarkGray:
-			pixels = append(pixels, 76, 75, 74)
+			openGLPixels[tgt] = 75
+			openGLPixels[tgt+1] = 75
+			openGLPixels[tgt+2] = 75
 		case ppu.Black:
-			pixels = append(pixels, 0, 0, 0)
+			openGLPixels[tgt] = 0
+			openGLPixels[tgt+1] = 0
+			openGLPixels[tgt+2] = 0
 		default:
-			panic(fmt.Sprintf("toRGB: Got bad color: %v", c))
+			panic(fmt.Sprintf("toRGB: Got bad color: %v", px))
 		}
 	}
-	return pixels
+	return openGLPixels
 }

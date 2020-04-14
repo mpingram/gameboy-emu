@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/mpingram/gameboy-emu/cpu"
@@ -14,18 +15,37 @@ import (
 
 func main() {
 
-	bootRomFileLocation := os.Args[1]
+	bootRomFileLocation := "./roms/boot/DMG_ROM.gb"
 	bootRom, err := os.Open(bootRomFileLocation)
 	if err != nil {
 		panic(err)
 	}
-	gameRomFileLocation := os.Args[2]
+	gameRomFileLocation := os.Args[1]
 	gameRom, err := os.Open(gameRomFileLocation)
 	if err != nil {
 		panic(err)
 	}
 
+	var breakpointEnabled bool
+	var breakpoint int64
+	if len(os.Args) > 2 {
+		breakpointInput := os.Args[2]
+		breakpoint, err = strconv.ParseInt(breakpointInput, 0, 0)
+		if err != nil {
+			if breakpointInput != "" {
+				fmt.Printf("ERR: Failed to parse breakpoint: %v\n", breakpointInput)
+				return
+			}
+			breakpointEnabled = false
+		} else {
+			breakpointEnabled = true
+		}
+	}
+
 	m := mmu.New(mmu.MMUOptions{BootRom: bootRom, GameRom: gameRom})
+	if err != nil {
+		panic(err)
+	}
 	p := ppu.New(m.PPUInterface)
 	c := cpu.New(m.CPUInterface)
 
@@ -34,7 +54,6 @@ func main() {
 	paused := false
 	// cpu goroutine
 	go func() {
-		breakpoint := uint16(0x0100)
 		var instr cpu.Instruction
 		for {
 			<-cpuClock.C
@@ -51,7 +70,9 @@ func main() {
 					}
 					// dump memory to file
 					m.Dump(memdump)
-				} else if command == "e\n" || command == "exit\n" {
+				} else if command == "c\n" || command == "continue\n" {
+					paused = false
+				} else if command == "q\n" || command == "quit\n" {
 					break
 				} else {
 					pc := c.PC
@@ -63,7 +84,7 @@ func main() {
 				pc := c.PC
 				instr, cycles := c.Step()
 				p.RunFor(cycles)
-				if pc == breakpoint {
+				if breakpointEnabled && int64(pc) == breakpoint {
 					paused = true
 					fmt.Println("HALTED after executing")
 					fmt.Printf("($%04x)\t%s\n", pc, instr.String())
