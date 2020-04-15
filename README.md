@@ -34,23 +34,24 @@ Here's a list of some of the documentation referenced for this emulator:
 * (Gameboy CPU manual -- has very complete documentation on opcodes)http://marc.rawer.de/Gameboy/Docs/GBCPUman.pdf
 * (Gameboy Devr's -- good resources on GB hardware) http://www.devrs.com/gb/hardware.php#hardgb
 * (Helpful explanation of Z80 bit shifting instructions)http://jgmalcolm.com/z80/advanced/shif
+* (PPU timing breakdown) http://blog.kevtris.org/blogfiles/Nitty%20Gritty%20Gameboy%20VRAM%20Timing.txt
 
 And a meta-reference containing some of these docs, as well as other GB related info: https://github.com/gbdev/awesome-gbdev
 
 ## Architecture
 The emulator code is split into three main parts, the CPU, the PPU (Pixel Processing Unit), and the MMU (Memory Management Unit).
 ### CPU
-The CPU code is in charge of decoding and executing instructions for the Gameboy's CPU (a SHARP LR35902, which is very similar to the 8080 and Z80 procesors.) 
-The process involves: 
+The CPU code is in charge of decoding and executing instructions for the Gameboy's CPU (a SHARP LR35902, which is very similar to the 8080 and Z80 procesors.)
+The process involves:
 1) Decoding CPU instructions: `decode.go` reads raw bytes from memory and interprets them as CPU instructions -- e.g. `0x3e 0x01` -> `LD A, 0x01` ("Load 0x01 into register A")
 2) Executing the CPU instructions: `execute.go` takes a CPU instruction and its argument(s) and calls a function that manipulates the state of the CPU and MMU.
 
 > The current state of the CPU code is __nearly somewhat functional__ -- most CPU instructions have been implemented, although currently there is no timing accuracy _at all_ and there is in general a long way to go before the CPU is bug-for-bug accurate to the real gameboy.
 
 ### MMU (Memory Management Unit)
-The MMU is responsible for providing read/write access of the Gameboy's 8KiB memory to the CPU and MMU. This simple role is complicated by a few quirks, including switchable memory banks, read-only areas of memory, and a complex interaction between the CPU and MMU's memory access in the video RAM. For an accessible overview of the complexities of the Gameboy's memory, see the [Ultimate Gameboy Talk](https://media.ccc.de/v/33c3-8029-the_ultimate_game_boy_talk) (also in documentation above)
->The current state of the MMU is __barely implemented__. There's a basic interface to 8KiB of memory, but none of the complexities are implemented yet.
+The MMU is responsible for managing the Gameboy's 64KiB memory address space and providing access to the CPU and MMU. This simple role is complicated by a few quirks, including switchable memory banks, read-only areas of memory, and a complex interaction between the CPU and MMU's memory access in the video RAM. For an accessible overview of the complexities of the Gameboy's memory, see the [Ultimate Gameboy Talk](https://media.ccc.de/v/33c3-8029-the_ultimate_game_boy_talk) (also in documentation above)
+>The current state of the MMU is __barely implemented__. There's a basic interface to 64kb of memory, but none of the complexities are implemented yet.
 
 ### PPU (Pixel Processing Unit)
-The PPU is a real physical chip on the original Gameboy whose entire job is to display pixels to the Gameboy's LCD screen. 
->The PPU code in this repository is currently __not implemented__.
+The PPU is a real physical chip on the original Gameboy whose entire job is to display pixels to the Gameboy's LCD screen.
+>The PPU code in this repository is currently __nearly somewhat functional__. It can display the Nintendo logo!

@@ -5,6 +5,12 @@ import (
 	"testing"
 )
 
+func testSetup() (*CPU, *mmu.MMU) {
+	mmu := mmu.New(mmu.MMUOptions{})
+	cpu := New(mmu.CPUInterface)
+	return cpu, mmu
+}
+
 func TestCPU_Jp(t *testing.T) {
 
 	type args struct {
@@ -20,8 +26,8 @@ func TestCPU_Jp(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			mmu := mmu.New()
-			c := New(mmu)
+			c, _ := testSetup()
+
 			c.Registers = tt.regs
 
 			c.Jp(tt.args.a16)
@@ -48,8 +54,8 @@ func TestCPU_Jp_HL(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mmu := mmu.New()
-			c := New(mmu)
+			c, _ := testSetup()
+
 			c.Registers = tt.regs
 			c.Jp_HL()
 			// Expect PC to be HL
@@ -76,8 +82,8 @@ func TestCPU_JpNZ(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mmu := mmu.New()
-			c := New(mmu)
+			c, _ := testSetup()
+
 			c.Registers = tt.regs
 			c.JpNZ(tt.args.a16)
 			if c.getFlagZ() == false {
@@ -105,8 +111,8 @@ func TestCPU_JpZ(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mmu := mmu.New()
-			c := New(mmu)
+			c, _ := testSetup()
+
 			c.Registers = tt.regs
 
 			c.JpZ(tt.args.a16)
@@ -135,8 +141,8 @@ func TestCPU_JpNC(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mmu := mmu.New()
-			c := New(mmu)
+			c, _ := testSetup()
+
 			c.Registers = tt.regs
 
 			c.JpNC(tt.args.a16)
@@ -165,8 +171,8 @@ func TestCPU_JpC(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mmu := mmu.New()
-			c := New(mmu)
+			c, _ := testSetup()
+
 			c.Registers = tt.regs
 
 			c.JpC(tt.args.a16)
@@ -200,8 +206,8 @@ func TestCPU_Jr(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mmu := mmu.New()
-			c := New(mmu)
+			c, _ := testSetup()
+
 			c.Registers = tt.regs
 
 			c.Jr(tt.args.r8)
@@ -248,8 +254,8 @@ func TestCPU_JrNZ(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mmu := mmu.New()
-			c := New(mmu)
+			c, _ := testSetup()
+
 			c.Registers = tt.regs
 
 			c.JrNZ(tt.args.r8)
@@ -296,8 +302,8 @@ func TestCPU_JrZ(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mmu := mmu.New()
-			c := New(mmu)
+			c, _ := testSetup()
+
 			c.Registers = tt.regs
 
 			c.JrZ(tt.args.r8)
@@ -344,8 +350,8 @@ func TestCPU_JrNC(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mmu := mmu.New()
-			c := New(mmu)
+			c, _ := testSetup()
+
 			c.Registers = tt.regs
 
 			c.JrNC(tt.args.r8)
@@ -392,8 +398,8 @@ func TestCPU_JrC(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mmu := mmu.New()
-			c := New(mmu)
+			c, _ := testSetup()
+
 			c.Registers = tt.regs
 
 			c.JrC(tt.args.r8)
@@ -432,8 +438,8 @@ func TestCPU_Call(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mmu := mmu.New()
-			c := New(mmu)
+			c, _ := testSetup()
+
 			c.Registers = tt.regs
 
 			c.Call(tt.args.a16)
@@ -447,10 +453,7 @@ func TestCPU_Call(t *testing.T) {
 				t.Errorf("Wanted SP to be %04x, got %04x", tt.regs.SP-2, c.SP)
 			}
 			// Expect word at SP to contain previous PC
-			valSP, err := c.mem.Rw(c.SP)
-			if err != nil {
-				t.Error(err)
-			}
+			valSP := c.mem.Rw(c.SP)
 			if valSP != tt.regs.PC {
 				t.Errorf("Wanted (SP) to be %04x, got %04x", tt.regs.PC, valSP)
 			}
@@ -474,8 +477,8 @@ func TestCPU_CallNZ(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mmu := mmu.New()
-			c := New(mmu)
+			c, _ := testSetup()
+
 			c.Registers = tt.regs
 
 			c.CallNZ(tt.args.a16)
@@ -502,10 +505,7 @@ func TestCPU_CallNZ(t *testing.T) {
 					t.Errorf("Wanted SP to be %04x, got %04x", tt.regs.SP-2, c.SP)
 				}
 				// Expect word at SP to contain previous PC
-				valSP, err := c.mem.Rw(c.SP)
-				if err != nil {
-					t.Error(err)
-				}
+				valSP := c.mem.Rw(c.SP)
 				if valSP != tt.regs.PC {
 					t.Errorf("Wanted (SP) to be %04x, got %04x", tt.regs.PC, valSP)
 				}
@@ -530,8 +530,8 @@ func TestCPU_CallZ(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mmu := mmu.New()
-			c := New(mmu)
+			c, _ := testSetup()
+
 			c.Registers = tt.regs
 
 			c.CallZ(tt.args.a16)
@@ -558,10 +558,7 @@ func TestCPU_CallZ(t *testing.T) {
 					t.Errorf("Wanted SP to be %04x, got %04x", tt.regs.SP-2, c.SP)
 				}
 				// Expect word at SP to contain previous PC
-				valSP, err := c.mem.Rw(c.SP)
-				if err != nil {
-					t.Error(err)
-				}
+				valSP := c.mem.Rw(c.SP)
 				if valSP != tt.regs.PC {
 					t.Errorf("Wanted (SP) to be %04x, got %04x", tt.regs.PC, valSP)
 				}
@@ -586,8 +583,8 @@ func TestCPU_CallNC(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mmu := mmu.New()
-			c := New(mmu)
+			c, _ := testSetup()
+
 			c.Registers = tt.regs
 
 			c.CallNC(tt.args.a16)
@@ -614,10 +611,7 @@ func TestCPU_CallNC(t *testing.T) {
 					t.Errorf("Wanted SP to be %04x, got %04x", tt.regs.SP-2, c.SP)
 				}
 				// Expect word at SP to contain previous PC
-				valSP, err := c.mem.Rw(c.SP)
-				if err != nil {
-					t.Error(err)
-				}
+				valSP := c.mem.Rw(c.SP)
 				if valSP != tt.regs.PC {
 					t.Errorf("Wanted (SP) to be %04x, got %04x", tt.regs.PC, valSP)
 				}
@@ -642,8 +636,8 @@ func TestCPU_CallC(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mmu := mmu.New()
-			c := New(mmu)
+			c, _ := testSetup()
+
 			c.Registers = tt.regs
 
 			c.CallC(tt.args.a16)
@@ -670,10 +664,7 @@ func TestCPU_CallC(t *testing.T) {
 					t.Errorf("Wanted SP to be %04x, got %04x", tt.regs.SP-2, c.SP)
 				}
 				// Expect word at SP to contain previous PC
-				valSP, err := c.mem.Rw(c.SP)
-				if err != nil {
-					t.Error(err)
-				}
+				valSP := c.mem.Rw(c.SP)
 				if valSP != tt.regs.PC {
 					t.Errorf("Wanted (SP) to be %04x, got %04x", tt.regs.PC, valSP)
 				}
@@ -693,23 +684,17 @@ func TestCPU_Ret(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mmu := mmu.New()
-			c := New(mmu)
+			c, _ := testSetup()
+
 			c.Registers = tt.regs
 
 			// initialize memory
-			err := c.mem.Ww(c.SP, tt.valSP)
-			if err != nil {
-				t.Error(err)
-			}
+			c.mem.Ww(c.SP, tt.valSP)
 
 			c.Ret()
 
 			// Expect new PC to be word at old SP
-			expectedPC, err := c.mem.Rw(tt.regs.SP)
-			if err != nil {
-				t.Error(err)
-			}
+			expectedPC := c.mem.Rw(tt.regs.SP)
 			if c.PC != expectedPC {
 				t.Errorf("Wanted PC to be %04x, got %04x", expectedPC, c.PC)
 			}
@@ -734,15 +719,12 @@ func TestCPU_RetNZ(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mmu := mmu.New()
-			c := New(mmu)
+			c, _ := testSetup()
+
 			c.Registers = tt.regs
 
 			// initialize memory
-			err := c.mem.Ww(c.SP, tt.valSP)
-			if err != nil {
-				t.Error(err)
-			}
+			c.mem.Ww(c.SP, tt.valSP)
 
 			c.RetNZ()
 
@@ -760,10 +742,7 @@ func TestCPU_RetNZ(t *testing.T) {
 				// otherwise expect a return
 			} else {
 				// Expect new PC to be word at old SP
-				expectedPC, err := c.mem.Rw(tt.regs.SP)
-				if err != nil {
-					t.Error(err)
-				}
+				expectedPC := c.mem.Rw(tt.regs.SP)
 				if c.PC != expectedPC {
 					t.Errorf("Wanted PC to be %04x, got %04x", expectedPC, c.PC)
 				}
@@ -789,15 +768,12 @@ func TestCPU_RetZ(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mmu := mmu.New()
-			c := New(mmu)
+			c, _ := testSetup()
+
 			c.Registers = tt.regs
 
 			// initialize memory
-			err := c.mem.Ww(c.SP, tt.valSP)
-			if err != nil {
-				t.Error(err)
-			}
+			c.mem.Ww(c.SP, tt.valSP)
 
 			c.RetZ()
 
@@ -815,10 +791,7 @@ func TestCPU_RetZ(t *testing.T) {
 				// otherwise expect a return
 			} else {
 				// Expect new PC to be word at old SP
-				expectedPC, err := c.mem.Rw(tt.regs.SP)
-				if err != nil {
-					t.Error(err)
-				}
+				expectedPC := c.mem.Rw(tt.regs.SP)
 				if c.PC != expectedPC {
 					t.Errorf("Wanted PC to be %04x, got %04x", expectedPC, c.PC)
 				}
@@ -844,15 +817,12 @@ func TestCPU_RetNC(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mmu := mmu.New()
-			c := New(mmu)
+			c, _ := testSetup()
+
 			c.Registers = tt.regs
 
 			// initialize memory
-			err := c.mem.Ww(c.SP, tt.valSP)
-			if err != nil {
-				t.Error(err)
-			}
+			c.mem.Ww(c.SP, tt.valSP)
 
 			c.RetNC()
 
@@ -870,10 +840,7 @@ func TestCPU_RetNC(t *testing.T) {
 				// otherwise expect a return
 			} else {
 				// Expect new PC to be word at old SP
-				expectedPC, err := c.mem.Rw(tt.regs.SP)
-				if err != nil {
-					t.Error(err)
-				}
+				expectedPC := c.mem.Rw(tt.regs.SP)
 				if c.PC != expectedPC {
 					t.Errorf("Wanted PC to be %04x, got %04x", expectedPC, c.PC)
 				}
@@ -899,15 +866,12 @@ func TestCPU_RetC(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mmu := mmu.New()
-			c := New(mmu)
+			c, _ := testSetup()
+
 			c.Registers = tt.regs
 
 			// initialize memory
-			err := c.mem.Ww(c.SP, tt.valSP)
-			if err != nil {
-				t.Error(err)
-			}
+			c.mem.Ww(c.SP, tt.valSP)
 
 			c.RetC()
 
@@ -925,10 +889,7 @@ func TestCPU_RetC(t *testing.T) {
 				// otherwise expect a return
 			} else {
 				// Expect new PC to be word at old SP
-				expectedPC, err := c.mem.Rw(tt.regs.SP)
-				if err != nil {
-					t.Error(err)
-				}
+				expectedPC := c.mem.Rw(tt.regs.SP)
 				if c.PC != expectedPC {
 					t.Errorf("Wanted PC to be %04x, got %04x", expectedPC, c.PC)
 				}
@@ -955,16 +916,13 @@ func TestCPU_Reti(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mmu := mmu.New()
-			c := New(mmu)
+			c, _ := testSetup()
+
 			c.Registers = tt.regs
 			c.ime = tt.ime
 
 			// initialize memory
-			err := c.mem.Ww(c.SP, tt.valSP)
-			if err != nil {
-				t.Error(err)
-			}
+			c.mem.Ww(c.SP, tt.valSP)
 
 			c.Reti()
 
@@ -974,10 +932,7 @@ func TestCPU_Reti(t *testing.T) {
 			}
 
 			// Expect new PC to be word at old SP
-			expectedPC, err := c.mem.Rw(tt.regs.SP)
-			if err != nil {
-				t.Error(err)
-			}
+			expectedPC := c.mem.Rw(tt.regs.SP)
 			if c.PC != expectedPC {
 				t.Errorf("Wanted PC to be %04x, got %04x", expectedPC, c.PC)
 			}
@@ -1014,8 +969,8 @@ func TestCPU_Rst(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mmu := mmu.New()
-			c := New(mmu)
+			c, _ := testSetup()
+
 			c.Registers = tt.regs
 
 			// Expect call to $0000 + n IF n is 00, 08, 10, 18, 20, 28, 30, 38
@@ -1029,10 +984,7 @@ func TestCPU_Rst(t *testing.T) {
 					t.Errorf("Expected PC to be %04x, got %04x", uint16(tt.args.n), c.PC)
 				}
 				// Expect word at SP to be old PC
-				valSP, err := c.mem.Rw(c.SP)
-				if err != nil {
-					t.Error(err)
-				}
+				valSP := c.mem.Rw(c.SP)
 				if valSP != tt.regs.PC {
 					t.Errorf("Expected (SP) to be %04x, got %04x", tt.regs.PC, valSP)
 				}

@@ -1,6 +1,1 @@
-Experiment with PPU api
-
-* Trying to figure out best way to break up rendering
-  into parts, ideally testable parts
-
-
+Test ppu.drawScanline

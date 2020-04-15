@@ -5,7 +5,7 @@ import (
 )
 
 // Execute executes a Sharp LR3502 instruction.
-func (c *CPU) Execute(i Instruction) error {
+func (c *CPU) Execute(i Instruction) {
 
 	if !i.opc.prefixCB {
 		// unprefixed opcodes
@@ -507,7 +507,7 @@ func (c *CPU) Execute(i Instruction) error {
 		case RST_38H:
 			c.Rst(0x38)
 		default:
-			return fmt.Errorf("No match for opcode %v", i.opc.val)
+			panic(fmt.Sprintf("No match for opcode %v", i.opc.val))
 		}
 
 	} else {
@@ -1055,21 +1055,20 @@ func (c *CPU) Execute(i Instruction) error {
 			c.Set_n_r(7, RegA)
 
 		default:
-			return fmt.Errorf("No match for opcode %v", i.opc.val)
+			panic(fmt.Sprintf("No match for opcode %v", i.opc.val))
 		}
 	}
-	return nil
 }
 
 func d16(data []byte) uint16 {
 	if len(data) != 2 {
 		panic(fmt.Errorf("Incorrect data in call to d16: %v", data))
 	}
-	return uint16(data[0]<<8) | uint16(data[1])
+	return uint16(data[1])<<8 | uint16(data[0])
 }
 
 func d8(data []byte) byte {
-	if len(data) != 2 {
+	if len(data) != 1 {
 		panic(fmt.Errorf("Incorrect data in call to d8: %v", data))
 	}
 	return data[0]
@@ -1079,7 +1078,7 @@ func a16(data []byte) uint16 {
 	if len(data) != 2 {
 		panic(fmt.Errorf("Incorrect data in call to a16: %v", data))
 	}
-	return uint16(data[0]<<8) | uint16(data[1])
+	return uint16(data[1])<<8 | uint16(data[0])
 }
 
 func a8(data []byte) byte {
