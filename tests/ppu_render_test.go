@@ -15,7 +15,7 @@ func setupTest() (*ppu.PPU, *mmu.MMU) {
 	return p, m
 }
 
-func Test_renderScreen(t *testing.T) {
+func renderScreen(t *testing.T) {
 
 	p, m := setupTest()
 	tileOffset := 0x2

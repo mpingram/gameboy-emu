@@ -1,8 +1,9 @@
 package cpu
 
 import (
-	"github.com/mpingram/gameboy-emu/mmu"
 	"testing"
+
+	"github.com/mpingram/gameboy-emu/mmu"
 )
 
 func testSetup() (*CPU, *mmu.MMU) {
@@ -209,14 +210,14 @@ func TestCPU_Jr(t *testing.T) {
 			c, _ := testSetup()
 
 			c.Registers = tt.regs
-
 			c.Jr(tt.args.r8)
-			// Expect PC to have changed by r8
+			// Expect PC to have changed by r8 + 2
+			// (because the PC first advances the 2 bytes from the Jr instruction)
 			var expected uint16
 			if tt.args.r8 < 0 {
-				expected = tt.regs.PC - uint16(-1*tt.args.r8)
+				expected = tt.regs.PC + 2 - uint16(-1*tt.args.r8)
 			} else {
-				expected = tt.regs.PC + uint16(tt.args.r8)
+				expected = tt.regs.PC + 2 + uint16(tt.args.r8)
 			}
 			/* FIXME what is the expected wraparound behavior?
 			if expected < 0 {
@@ -260,7 +261,7 @@ func TestCPU_JrNZ(t *testing.T) {
 
 			c.JrNZ(tt.args.r8)
 
-			// Expect PC to have changed by r8 IF Flags & Zbit = 0
+			// Expect PC to have changed by r8 + 2 IF Flags & Zbit = 0
 			var expected uint16
 			if tt.regs.F&0x80 != 0 {
 				// If Z bit is 1, expect PC to not change
@@ -268,9 +269,9 @@ func TestCPU_JrNZ(t *testing.T) {
 			} else {
 				// Otherwise expect jump
 				if tt.args.r8 < 0 {
-					expected = tt.regs.PC - uint16(-1*tt.args.r8)
+					expected = tt.regs.PC + 2 - uint16(-1*tt.args.r8)
 				} else {
-					expected = tt.regs.PC + uint16(tt.args.r8)
+					expected = tt.regs.PC + 2 + uint16(tt.args.r8)
 				}
 			}
 			if c.PC != expected {
@@ -308,7 +309,7 @@ func TestCPU_JrZ(t *testing.T) {
 
 			c.JrZ(tt.args.r8)
 
-			// Expect PC to have changed by r8 IF Flags & Zbit = 1
+			// Expect PC to have changed by r8 + 2 IF Flags & Zbit = 1
 			var expected uint16
 			if tt.regs.F&0x80 == 0 {
 				// If Z is 0, expect PC to not change
@@ -316,9 +317,9 @@ func TestCPU_JrZ(t *testing.T) {
 			} else {
 				// Otherwise expect jump
 				if tt.args.r8 < 0 {
-					expected = tt.regs.PC - uint16(-1*tt.args.r8)
+					expected = tt.regs.PC + 2 - uint16(-1*tt.args.r8)
 				} else {
-					expected = tt.regs.PC + uint16(tt.args.r8)
+					expected = tt.regs.PC + 2 + uint16(tt.args.r8)
 				}
 			}
 			if c.PC != expected {
@@ -356,7 +357,7 @@ func TestCPU_JrNC(t *testing.T) {
 
 			c.JrNC(tt.args.r8)
 
-			// Expect PC to have changed by r8 IF Flags & Cbit = 0
+			// Expect PC to have changed by r8 + 2 IF Flags & Cbit = 0
 			var expected uint16
 			if tt.regs.F&0x10 != 0 {
 				// If C is 1, expect PC to not change
@@ -364,9 +365,9 @@ func TestCPU_JrNC(t *testing.T) {
 			} else {
 				// Otherwise expect jump
 				if tt.args.r8 < 0 {
-					expected = tt.regs.PC - uint16(-1*tt.args.r8)
+					expected = tt.regs.PC + 2 - uint16(-1*tt.args.r8)
 				} else {
-					expected = tt.regs.PC + uint16(tt.args.r8)
+					expected = tt.regs.PC + 2 + uint16(tt.args.r8)
 				}
 			}
 			if c.PC != expected {
@@ -404,7 +405,7 @@ func TestCPU_JrC(t *testing.T) {
 
 			c.JrC(tt.args.r8)
 
-			// Expect PC to have changed by r8 IF Flags & Cbit = 1
+			// Expect PC to have changed by r8 + 2  IF Flags & Cbit = 1
 			var expected uint16
 			if tt.regs.F&0x10 == 0 {
 				// If C is 0, expect PC to not change
@@ -412,9 +413,9 @@ func TestCPU_JrC(t *testing.T) {
 			} else {
 				// Otherwise expect jump
 				if tt.args.r8 < 0 {
-					expected = tt.regs.PC - uint16(-1*tt.args.r8)
+					expected = tt.regs.PC + 2 - uint16(-1*tt.args.r8)
 				} else {
-					expected = tt.regs.PC + uint16(tt.args.r8)
+					expected = tt.regs.PC + 2 + uint16(tt.args.r8)
 				}
 			}
 			if c.PC != expected {
@@ -452,10 +453,11 @@ func TestCPU_Call(t *testing.T) {
 			if c.SP != tt.regs.SP-2 {
 				t.Errorf("Wanted SP to be %04x, got %04x", tt.regs.SP-2, c.SP)
 			}
-			// Expect word at SP to contain previous PC
+			// Expect word at SP to contain next instruction (previous PC+3)
 			valSP := c.mem.Rw(c.SP)
-			if valSP != tt.regs.PC {
-				t.Errorf("Wanted (SP) to be %04x, got %04x", tt.regs.PC, valSP)
+			nextInstr := tt.regs.PC + 3
+			if valSP != nextInstr {
+				t.Errorf("Wanted (SP) to be %04x, got %04x", nextInstr, valSP)
 			}
 		})
 	}
@@ -504,10 +506,11 @@ func TestCPU_CallNZ(t *testing.T) {
 				if c.SP != tt.regs.SP-2 {
 					t.Errorf("Wanted SP to be %04x, got %04x", tt.regs.SP-2, c.SP)
 				}
-				// Expect word at SP to contain previous PC
+				// Expect word at SP to contain next instruction (previous PC+3)
 				valSP := c.mem.Rw(c.SP)
-				if valSP != tt.regs.PC {
-					t.Errorf("Wanted (SP) to be %04x, got %04x", tt.regs.PC, valSP)
+				nextInstr := tt.regs.PC + 3
+				if valSP != nextInstr {
+					t.Errorf("Wanted (SP) to be %04x, got %04x", nextInstr, valSP)
 				}
 			}
 		})
@@ -559,8 +562,9 @@ func TestCPU_CallZ(t *testing.T) {
 				}
 				// Expect word at SP to contain previous PC
 				valSP := c.mem.Rw(c.SP)
-				if valSP != tt.regs.PC {
-					t.Errorf("Wanted (SP) to be %04x, got %04x", tt.regs.PC, valSP)
+				nextInstr := tt.regs.PC + 3
+				if valSP != nextInstr {
+					t.Errorf("Wanted (SP) to be %04x, got %04x", nextInstr, valSP)
 				}
 			}
 		})
@@ -612,8 +616,9 @@ func TestCPU_CallNC(t *testing.T) {
 				}
 				// Expect word at SP to contain previous PC
 				valSP := c.mem.Rw(c.SP)
-				if valSP != tt.regs.PC {
-					t.Errorf("Wanted (SP) to be %04x, got %04x", tt.regs.PC, valSP)
+				nextInstr := tt.regs.PC + 3
+				if valSP != nextInstr {
+					t.Errorf("Wanted (SP) to be %04x, got %04x", nextInstr, valSP)
 				}
 			}
 		})
@@ -665,8 +670,9 @@ func TestCPU_CallC(t *testing.T) {
 				}
 				// Expect word at SP to contain previous PC
 				valSP := c.mem.Rw(c.SP)
-				if valSP != tt.regs.PC {
-					t.Errorf("Wanted (SP) to be %04x, got %04x", tt.regs.PC, valSP)
+				nextInstr := tt.regs.PC + 3
+				if valSP != nextInstr {
+					t.Errorf("Wanted (SP) to be %04x, got %04x", nextInstr, valSP)
 				}
 			}
 		})
@@ -983,10 +989,11 @@ func TestCPU_Rst(t *testing.T) {
 				if c.PC != uint16(tt.args.n) {
 					t.Errorf("Expected PC to be %04x, got %04x", uint16(tt.args.n), c.PC)
 				}
-				// Expect word at SP to be old PC
+				// Expect word at SP to be addr of next instruction (old PC+1(len of Rst instruction))
 				valSP := c.mem.Rw(c.SP)
-				if valSP != tt.regs.PC {
-					t.Errorf("Expected (SP) to be %04x, got %04x", tt.regs.PC, valSP)
+				nextInstr := tt.regs.PC + 1
+				if valSP != nextInstr {
+					t.Errorf("Expected (SP) to be %04x, got %04x", nextInstr, valSP)
 				}
 				// Expect SP to be old SP-2
 				if c.SP != tt.regs.SP-2 {

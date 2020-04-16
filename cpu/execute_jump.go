@@ -52,11 +52,12 @@ func (c *CPU) Jr(r8 int8) {
 	// FIXME in general, the model is "advance PC, then execute instruction at old PC"
 	// Advance PC before calculating offset
 	newPC := c.PC + 2 // jr instructions are 2 bytes long
+	// We need to add a signed byte to an unsigned uint16, while preserving
+	// uint16 overflow.
 	if isNegative := r8 < 0; isNegative {
 		// if our signed byte r8 is negative,
 		// make it positive(multiply it by -1), convert it to a uint16,
 		// and subtract it from PC.
-		// FIXME why?
 		c.PC = newPC - uint16(r8*-1)
 	} else {
 		// our signed byte r8 is positive,
@@ -184,7 +185,7 @@ func (c *CPU) Rst(n RstTarget) {
 		// restrict access to this rea of memory.
 		c.SP -= 2 // stack grows downward
 		// increment PC to next instruction and push it onto the stack
-		c.mem.Ww(c.SP, c.PC+2)
+		c.mem.Ww(c.SP, c.PC+1) // RST instructions are 1 byte long, as RST $00, RST $20 etc are hard-coded
 		c.PC = uint16(n)
 
 	default:
