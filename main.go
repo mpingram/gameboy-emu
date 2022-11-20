@@ -8,14 +8,13 @@ import (
 	"time"
 
 	"github.com/mpingram/gameboy-emu/cpu"
-	frontend "github.com/mpingram/gameboy-emu/frontend/opengl"
 	"github.com/mpingram/gameboy-emu/mmu"
 	"github.com/mpingram/gameboy-emu/ppu"
 )
 
 func main() {
 
-	bootRomFileLocation := "./roms/boot/DMG_ROM.gb"
+	bootRomFileLocation := "./roms/boot/DMG_ROM.bin"
 	bootRom, err := os.Open(bootRomFileLocation)
 	if err != nil {
 		panic(err)
@@ -25,6 +24,8 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
+	var _, debug = os.LookupEnv("DEBUG")
 
 	var breakpointEnabled bool
 	var breakpoint int64
@@ -48,52 +49,52 @@ func main() {
 	}
 	p := ppu.New(m.PPUInterface)
 	c := cpu.New(m.CPUInterface)
+	if debug {
+		fmt.Println(printCPUState(c))
+	}
 
 	cpuClock := time.NewTicker(time.Nanosecond)
 	defer cpuClock.Stop()
-	paused := false
-	// cpu goroutine
-	go func() {
-		var instr cpu.Instruction
-		for {
-			<-cpuClock.C
-			if paused {
-				fmt.Print("> ")
-				command := waitForInput()
-				if command == "p\n" || command == "print\n" {
-					fmt.Println(printCPUState(c))
-				} else if command == "m\n" || command == "memdump\n" {
-					memdump, err := os.Create("dumps/memdump.bin")
-					defer memdump.Close()
-					if err != nil {
-						panic(err)
-					}
-					// dump memory to file
-					m.Dump(memdump)
-				} else if command == "c\n" || command == "continue\n" {
-					paused = false
-				} else if command == "q\n" || command == "quit\n" {
-					break
-				} else {
-					pc := c.PC
-					instr, _ = c.Step()
-					fmt.Printf("($%04x)\t%s\n", pc, instr.String())
-					fmt.Printf("c.PC is now: %04x\n", c.PC)
+	_, paused := os.LookupEnv("PAUSED")
+	var instr cpu.Instruction
+	for {
+		<-cpuClock.C
+		if paused {
+			fmt.Print("> ")
+			command := waitForInput()
+			if command == "p\n" || command == "print\n" {
+				fmt.Println(printCPUState(c))
+			} else if command == "m\n" || command == "memdump\n" {
+				memdump, err := os.Create("dumps/memdump.bin")
+				defer memdump.Close()
+				if err != nil {
+					panic(err)
 				}
+				// dump memory to file
+				m.Dump(memdump)
+			} else if command == "c\n" || command == "continue\n" {
+				paused = false
+			} else if command == "q\n" || command == "quit\n" {
+				break
 			} else {
 				pc := c.PC
-				instr, cycles := c.Step()
-				p.RunFor(cycles)
-				if breakpointEnabled && int64(pc) == breakpoint {
-					paused = true
-					fmt.Println("HALTED after executing")
-					fmt.Printf("($%04x)\t%s\n", pc, instr.String())
-				}
+				instr, _ = c.Step()
+				fmt.Printf("($%04x)\t%s\n", pc, instr.String())
+				fmt.Printf("c.PC is now: %04x\n", c.PC)
+			}
+		} else {
+			pc := c.PC
+			instr, cycles := c.Step()
+			p.RunFor(cycles)
+			if breakpointEnabled && int64(pc) == breakpoint {
+				paused = true
+				fmt.Println("HALTED after executing")
+				fmt.Printf("($%04x)\t%s\n", pc, instr.String())
 			}
 		}
-	}()
+	}
 
-	frontend.ConnectVideo(p.VideoOut)
+	// frontend.ConnectVideo(p.VideoOut)
 
 }
 
