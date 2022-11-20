@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"image/color"
 	"io"
 	"os"
 	"strconv"
@@ -25,6 +26,9 @@ type GameBoy struct {
 	breakpoint uint16
 	breakpointEnabled bool
 
+	screen *ebiten.Image
+	screenW int
+	screenH int
 }
 
 
@@ -39,10 +43,34 @@ func NewGameBoy(bootRom, gameRom io.Reader, breakpoint uint16) *GameBoy {
 	gb.ppu = ppu.New(gb.mmu.PPUInterface)
 	gb.cpu = cpu.New(gb.mmu.CPUInterface)
 
+	gb.screen = ebiten.NewImage(160, 144)
+	gb.screenW = 160
+	gb.screenH = 144
+
 	return gb
 }
 
 func (gb *GameBoy) Draw(screen *ebiten.Image) {
+
+	rawImage := <-gb.ppu.VideoOut
+	for i, px := range rawImage {
+		var col color.Color
+		switch(px) {
+		case ppu.White:
+			col = color.White
+		case ppu.LightGray:
+			col = color.White
+		case ppu.DarkGray:
+			col = color.Black
+		case ppu.Black:
+			col = color.Black
+		}
+		x := i % gb.screenW
+		y := i / gb.screenH
+		gb.screen.Set(x, y, col)
+	}
+
+	screen.DrawImage(gb.screen, &ebiten.DrawImageOptions{})
 	ebitenutil.DebugPrint(screen, fmt.Sprintf("0x%0x  FPS: %f", gb.cpu.PC, ebiten.CurrentFPS()))
 }
 
