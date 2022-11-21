@@ -1108,6 +1108,10 @@ const (
 	RstTarget0x38 RstTarget = 0x38
 )
 
+// addHalfCarriesByte determines whether or not the
+// addition of a+b sets bit 4 of a byte.
+// The 'carry' parameter is for the benefit of the ADC
+// instruction, which adds the current carry flag to the result.
 func addHalfCarriesByte(a, b byte, carry bool) bool {
 	// add the lower nibbles of a,b,c, and check
 	// if the sum carries over to the higher nibble.

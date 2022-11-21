@@ -14,7 +14,7 @@
  * di             F3           4 ---- disable interrupts, IME=0
  * ei             FB           4 ---- enable interrupts, IME=1
  *
- * 
+ *
  * II. Jump commands
  * ------------+--------+------+------+-----
  * mnem.       | bytes  |cycles| znhc | desc
@@ -108,11 +108,11 @@
  * ------+--------------+------+------+-----
  * mnem. |byte signature|cycles| znhc | desc
  * ------+--------------+------+------+-----
- * add  HL,rr     x9           8 -0hc HL = HL+rr     ;rr may be BC,DE,HL
+ * add  HL,rr     x9           8 -0hc HL = HL+rr     ;rr may be BC,DE,HL,SP
  * add  HL,SP     x9           8 -0hc HL = HL+SP  	 (NOTE mpingram -- added this)
  * inc  rr        x3           8 ---- rr = rr+1      ;rr may be BC,DE,HL
  * inc  SP        x3           8 ---- SP = SP+1    	 (NOTE mpingram -- added this)
- * dec  rr        xB           8 ---- rr = rr-1      ;rr may be BC,DE,HL,SP
+ * dec  rr        xB           8 ---- rr = rr-1      ;rr may be BC,DE,HL
  * dec  SP        xB           8 ---- SP = SP-1      (NOTE mpingram -- added this)
  * add  SP,dd     E8          16 00hc SP = SP +/- dd ;dd is 8bit signed number
  * ld   HL,SP+dd  F8          12 00hc HL = SP +/- dd ;dd is 8bit signed number
