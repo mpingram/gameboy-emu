@@ -1,11 +1,11 @@
 package main
 
 import (
+	"bytes"
+	_ "embed"
 	"fmt"
 	"image/color"
 	"io"
-	"os"
-	"strconv"
 
 	"github.com/mpingram/gameboy-emu/cpu"
 	"github.com/mpingram/gameboy-emu/mmu"
@@ -23,17 +23,16 @@ type GameBoy struct {
 	cpu *cpu.CPU
 	ppu *ppu.PPU
 
-	breakpoint uint16
+	breakpoint        uint16
 	breakpointEnabled bool
 
-	screen *ebiten.Image
+	screen  *ebiten.Image
 	screenW int
 	screenH int
 }
 
-
 func NewGameBoy(bootRom, gameRom io.Reader, breakpoint uint16) *GameBoy {
-	
+
 	gb := &GameBoy{}
 
 	gb.breakpoint = breakpoint
@@ -55,7 +54,7 @@ func (gb *GameBoy) Draw(screen *ebiten.Image) {
 	rawImage := <-gb.ppu.VideoOut
 	for i, px := range rawImage {
 		var col color.Color
-		switch(px) {
+		switch px {
 		case ppu.White:
 			col = color.White
 		case ppu.LightGray:
@@ -92,32 +91,13 @@ func (gb *GameBoy) Layout(outsideWidth, outsideHeight int) (int, int) {
 	return 160, 144
 }
 
+//go:embed roms/boot/DMG_ROM.bin
+var bootRom []byte
+
+//go:embed roms/tetris.gb
+var gameRom []byte
+
 func main() {
-
-	bootRomFileLocation := "./roms/boot/DMG_ROM.bin"
-	bootRom, err := os.Open(bootRomFileLocation)
-	if err != nil {
-		panic(err)
-	}
-	gameRomFileLocation := os.Args[1]
-	gameRom, err := os.Open(gameRomFileLocation)
-	if err != nil {
-		panic(err)
-	}
-
-	var breakpoint int64
-	if len(os.Args) > 2 {
-		breakpointInput := os.Args[2]
-		breakpoint, err = strconv.ParseInt(breakpointInput, 0, 16)
-		if err != nil {
-			if breakpointInput != "" {
-				fmt.Printf("ERR: Failed to parse breakpoint: %v\n", breakpointInput)
-				return
-			}
-		}
-	}
-
-	gb := NewGameBoy(bootRom, gameRom, uint16(breakpoint))
-
+	gb := NewGameBoy(bytes.NewReader(bootRom), bytes.NewReader(gameRom), 0)
 	ebiten.RunGame(gb)
 }
