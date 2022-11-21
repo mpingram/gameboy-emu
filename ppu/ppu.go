@@ -6,22 +6,27 @@ import (
 	"github.com/mpingram/gameboy-emu/mmu"
 )
 
+const screenHeight = 144
+const screenWidth = 160
+
 type PPU struct {
 	mem      mmu.MemoryReadWriter
 	cycles   int
 	screen   []byte
 	VideoOut chan []byte
+
+	scanline []byte
+	tileData []byte
 }
 
 func New(mem mmu.MemoryReadWriter) *PPU {
 	videoOut := make(chan []byte, 1) // videoOut channel is buffered by one screen
-	ppu := &PPU{mem, 0, []byte{}, videoOut}
+	scanline := make([]byte, screenWidth)
+	tileData := make([]byte, 8)
+	ppu := &PPU{mem, 0, []byte{}, videoOut, scanline, tileData}
 	ppu.setMode(OAMSearch)
 	return ppu
 }
-
-const screenHeight = 144
-const screenWidth = 160
 
 // LCDControl represents a memory register located at 0xFF4
 // which is used to configure the behavior of the PPU while the Gameboy is running.
@@ -97,8 +102,9 @@ func (p *PPU) setMode(mode Mode) {
 }
 
 // getBackgroundTileRow returns the 8 pixels of a row of a background tile located at
-// coordinate x, y.
-func (p *PPU) getBackgroundTileRow(x, y byte) []pixelData {
+// coordinate x, y. Note that it does NOT know the palette color for these pixels.
+func (p *PPU) getBackgroundTileRow(x, y byte) []byte {
+	// func (p *PPU) getBackgroundTileRow(x, y byte) []pixelData {
 	// check lcdc to see where bg tile map is stored
 	lcdc := p.mem.Rb(LCDCAddr)
 	var tileMapLocation uint16
@@ -141,18 +147,22 @@ func (p *PPU) getBackgroundTileRow(x, y byte) []pixelData {
 	// The row of the tile that intersects with this y-coordinate. Rows go from 0-7,
 	// where 7 is the bottom row.
 	row := y % 8
-	tileData := p.getTileRowData(tileAddr, row)
-	pixels := make([]pixelData, 0)
-	for _, paletteIndex := range tileData {
-		px := pixelData{paletteIndex, bg}
-		pixels = append(pixels, px)
-	}
-	return pixels
+	return p.getTileRowData(tileAddr, row)
+
+	// tileData := p.getTileRowData(tileAddr, row)
+	// pixels := make([]pixelData, 0)
+	// for _, paletteIndex := range tileData {
+	// 	px := pixelData{paletteIndex, bg}
+	// 	pixels = append(pixels, px)
+	// }
+	// return pixels
 }
 
 // getTileRowData returns the color numbers, from left to right, of a certain row of a tile located
 // at a 16-byte region in video memory.
 // Tile rows are 0-indexed and run from top to bottom, so the bottom row of a tile is row 7.
+// FIXME almost certainly a bug here!
+// FIXME introduced a bug here :>
 func (p *PPU) getTileRowData(tileAddr uint16, row byte) []byte {
 	if row > 7 {
 		panic(fmt.Sprintf("Got tile row > 7: %v", row))
@@ -161,19 +171,20 @@ func (p *PPU) getTileRowData(tileAddr uint16, row byte) []byte {
 	// to bottom. The bytes that represents row n of the tile are at (tileAddr + n*2)
 	b1 := p.mem.Rb(tileAddr + uint16(row*2))
 	b2 := p.mem.Rb(tileAddr + uint16(row*2) + 1)
-	tileData := make([]byte, 0)
-	for i := 7; i >= 0; i-- {
+	i := 0
+	for j := 7; j >= 0; j-- {
 		// WARNING Possibly buggy
 		// https://gbdev.gg8.se/wiki/articles/Video_Display#VRAM_Tile_Data
 		// b1 contains the low bit of each px, from left (bit 7) to right (bit 0)
 		// b2 contains the high bit of each px, as above.
-		mask := byte(1) << i
-		lo := (b1 & mask) >> i
-		hi := (b2 & mask) >> i
+		mask := byte(1) << j
+		lo := (b1 & mask) >> j
+		hi := (b2 & mask) >> j
 		color := (hi << 1) | lo
-		tileData = append(tileData, color)
+		p.tileData[i] = color
+		i += 1
 	}
-	return tileData
+	return p.tileData
 }
 
 const (
@@ -257,46 +268,10 @@ func (p *PPU) getWindowY() byte {
 // Screen is a byte array representing the colorized pixels
 // of a gameboy screen. Its format is
 //
-//		1 pixel
-//	 |-----|
+//	 1 pixel
+//	|-----|
 //
 // [R, G, B, R, G, B, R, G, B]
 // Where R,G,B are one byte representing the red, green, blue
 // component of each pixel.
 type Screen []byte
-
-type pixelFifo struct {
-	fifo []pixelData
-}
-
-func (pf *pixelFifo) overlay(sprite []pixelData) {
-	// overlay the sprite's pixels on top of the leftmost 8 pixels in the fifo
-	for i, px := range sprite {
-		// Sprite color #0 is transparent -- don't overlay it.
-		// TODO implement OBJ-to-BG priority (https://gbdev.gg8.se/wiki/articles/Video_Display#FF48_-_OBP0_-_Object_Palette_0_Data_.28R.2FW.29_-_Non_CGB_Mode_Only)
-		if px.colorNumber != 0 {
-			pf.fifo[i] = px
-		}
-	}
-}
-
-func (pf *pixelFifo) dequeue() (pixelData, error) {
-	if len(pf.fifo) > 0 {
-		px := pf.fifo[0]
-		pf.fifo = pf.fifo[1:]
-		return px, nil
-	}
-	return pixelData{}, fmt.Errorf("Pixel fifo is empty")
-}
-
-func (pf *pixelFifo) addTile(tile []pixelData) {
-	pf.fifo = append(pf.fifo, tile...)
-}
-
-func (pf *pixelFifo) clear() {
-	pf.fifo = make([]pixelData, 0)
-}
-
-func (pf *pixelFifo) size() int {
-	return len(pf.fifo)
-}
