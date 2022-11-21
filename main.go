@@ -39,8 +39,8 @@ func NewGameBoy(bootRom, gameRom io.Reader, breakpoint uint16) *GameBoy {
 	gb.breakpointEnabled = breakpoint != 0
 
 	gb.mmu = mmu.New(mmu.MMUOptions{BootRom: bootRom, GameRom: gameRom})
-	gb.ppu = ppu.New(gb.mmu.PPUInterface)
-	gb.cpu = cpu.New(gb.mmu.CPUInterface)
+	gb.ppu = ppu.New(gb.mmu)
+	gb.cpu = cpu.New(gb.mmu)
 
 	gb.screen = ebiten.NewImage(160, 144)
 	gb.screenW = 160

@@ -3,13 +3,15 @@ package cpu
 import (
 	"testing"
 	"time"
+
+	"github.com/mpingram/gameboy-emu/mmu"
 )
 
 func TestCPU_Add_HL_rr(t *testing.T) {
 	type fields struct {
 		Registers     Registers
 		Clock         <-chan time.Time
-		mem           MemoryReadWriter
+		mem           mmu.MemoryReadWriter
 		halted        bool
 		stopped       bool
 		readyForStart bool
@@ -49,7 +51,7 @@ func TestCPU_Add_HL_SP(t *testing.T) {
 	type fields struct {
 		Registers     Registers
 		Clock         <-chan time.Time
-		mem           MemoryReadWriter
+		mem           mmu.MemoryReadWriter
 		halted        bool
 		stopped       bool
 		readyForStart bool
@@ -96,7 +98,7 @@ func TestCPU_Inc_rr(t *testing.T) {
 	type fields struct {
 		Registers     Registers
 		Clock         <-chan time.Time
-		mem           MemoryReadWriter
+		mem           mmu.MemoryReadWriter
 		halted        bool
 		stopped       bool
 		readyForStart bool
@@ -136,7 +138,7 @@ func TestCPU_Inc_SP(t *testing.T) {
 	type fields struct {
 		Registers     Registers
 		Clock         <-chan time.Time
-		mem           MemoryReadWriter
+		mem           mmu.MemoryReadWriter
 		halted        bool
 		stopped       bool
 		readyForStart bool
@@ -172,7 +174,7 @@ func TestCPU_Dec_rr(t *testing.T) {
 	type fields struct {
 		Registers     Registers
 		Clock         <-chan time.Time
-		mem           MemoryReadWriter
+		mem           mmu.MemoryReadWriter
 		halted        bool
 		stopped       bool
 		readyForStart bool
@@ -212,7 +214,7 @@ func TestCPU_Dec_SP(t *testing.T) {
 	type fields struct {
 		Registers     Registers
 		Clock         <-chan time.Time
-		mem           MemoryReadWriter
+		mem           mmu.MemoryReadWriter
 		halted        bool
 		stopped       bool
 		readyForStart bool
@@ -248,7 +250,7 @@ func TestCPU_Add_SP_r8(t *testing.T) {
 	type fields struct {
 		Registers     Registers
 		Clock         <-chan time.Time
-		mem           MemoryReadWriter
+		mem           mmu.MemoryReadWriter
 		halted        bool
 		stopped       bool
 		readyForStart bool
@@ -294,15 +296,15 @@ func TestCPU_Add_SP_r8(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := &CPU{
-				Registers:     tt.fields.Registers,
-				Clock:         tt.fields.Clock,
-				mem:           tt.fields.mem,
-				halted:        tt.fields.halted,
-				stopped:       tt.fields.stopped,
-				readyForStart: tt.fields.readyForStart,
-				ime:           tt.fields.ime,
-				setIME:        tt.fields.setIME,
-				breakpoint:    tt.fields.breakpoint,
+				Registers:     tt.fieldsIn.Registers,
+				Clock:         tt.fieldsIn.Clock,
+				mem:           tt.fieldsIn.mem,
+				halted:        tt.fieldsIn.halted,
+				stopped:       tt.fieldsIn.stopped,
+				readyForStart: tt.fieldsIn.readyForStart,
+				ime:           tt.fieldsIn.ime,
+				setIME:        tt.fieldsIn.setIME,
+				breakpoint:    tt.fieldsIn.breakpoint,
 			}
 			c.Add_SP_r8(tt.args.r8)
 		})
@@ -313,7 +315,7 @@ func TestCPU_Ld_HL_SPplusr8(t *testing.T) {
 	type fields struct {
 		Registers     Registers
 		Clock         <-chan time.Time
-		mem           MemoryReadWriter
+		mem           mmu.MemoryReadWriter
 		halted        bool
 		stopped       bool
 		readyForStart bool

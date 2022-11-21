@@ -3,25 +3,12 @@ package cpu
 import (
 	"fmt"
 	"time"
+
+	"github.com/mpingram/gameboy-emu/mmu"
 )
 
-type MemoryReadWriter interface {
-	MemoryReader
-	MemoryWriter
-}
-
-type MemoryReader interface {
-	Rb(addr uint16) byte
-	Rw(addr uint16) uint16
-}
-
-type MemoryWriter interface {
-	Wb(addr uint16, b byte)
-	Ww(addr uint16, bb uint16)
-}
-
 // New initializes and returns an instance of CPU.
-func New(memoryInterface MemoryReadWriter) *CPU {
+func New(memoryInterface mmu.MemoryReadWriter) *CPU {
 	cpu := &CPU{mem: memoryInterface}
 	// DEBUG this is an exceptionally slow clock
 	cpu.Clock = time.NewTicker(time.Microsecond).C
@@ -36,7 +23,7 @@ type CPU struct {
 	//TClock <-chan int
 	//MClock <-chan int
 
-	mem MemoryReadWriter
+	mem mmu.MemoryReadWriter
 
 	halted  bool // set by call to HALT: when halted, CPU is still `running`
 	stopped bool // set by call to STOP

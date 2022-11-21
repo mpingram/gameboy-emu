@@ -3,6 +3,8 @@ package cpu
 import (
 	"fmt"
 	"strings"
+
+	"github.com/mpingram/gameboy-emu/mmu"
 )
 
 type Instruction struct {
@@ -51,7 +53,7 @@ func (i *Instruction) String() string {
 	}
 }
 
-func Decode(addr uint16, mem MemoryReader) Instruction {
+func Decode(addr uint16, mem mmu.MemoryReadWriter) Instruction {
 
 	// FIXME: EDGE CASE: 'HALT' opcode may be 1 or 2 bytes long. Officially,
 	// it's supposed to be 0x01 0x00 (which looks like HALT, NOP), so some

@@ -12,9 +12,9 @@ func (p *PPU) RunFor(cycles int) {
 
 // Step executes 1 cycle's worth of work on the PPU.
 func (p *PPU) step() {
-	lcdstat := p.readLCDStat()
+	lcdstat := p.mem.Rb(LCDStatAddr)
 	lastCycle := 455
-	if lcdstat.Mode != VBlank {
+	if lcdstat&LCDMode != VBlank {
 		// In non-VBlank mode, iterate through OAMSearch -> Pixel Drawing -> HBLank modes,
 		// drawing a scanline every 456 clocks.
 		switch p.cycles {
@@ -38,10 +38,10 @@ func (p *PPU) step() {
 				p.screen = make([]byte, 0)
 				p.setLY(p.getLY() + 1)
 			} else {
-				panic(fmt.Sprintf("LY is %v (>143), but mode is %v (should be VBlank)", p.getLY(), lcdstat.Mode))
+				panic(fmt.Sprintf("LY is %v (>143), but mode is %v (should be VBlank)", p.getLY(), lcdstat&LCDMode))
 			}
 		}
-	} else if lcdstat.Mode == VBlank {
+	} else if lcdstat&LCDMode == VBlank {
 		// In VBlank mode, increment LY every 456 clocks until LY == 153,
 		// at which point re-enter OAMSearch mode and resume drawing scanlines.
 		if p.cycles == lastCycle {

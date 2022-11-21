@@ -8,7 +8,7 @@ import (
 
 func testSetup() (*CPU, *mmu.MMU) {
 	mmu := mmu.New(mmu.MMUOptions{})
-	cpu := New(mmu.CPUInterface)
+	cpu := New(mmu)
 	return cpu, mmu
 }
 

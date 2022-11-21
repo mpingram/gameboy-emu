@@ -8,7 +8,7 @@ import (
 
 func testSetup() (*PPU, *mmu.MMU) {
 	m := mmu.New(mmu.MMUOptions{})
-	p := New(m.PPUInterface)
+	p := New(m)
 	return p, m
 }
 
@@ -63,8 +63,9 @@ func Test_ModeSwitching(t *testing.T) {
 			p.setLY(tt.ly)
 			p.setMode(tt.modeIn)
 			p.RunFor(tt.cyclesToRunFor)
-			if p.readLCDStat().Mode != tt.modeOut {
-				t.Errorf("Got mode %v; expected %v", p.readLCDStat().Mode, tt.modeOut)
+			lcdstat := p.mem.Rb(LCDCAddr)
+			if lcdstat&LCDMode != byte(tt.modeOut) {
+				t.Errorf("Got mode %v; expected %v", lcdstat&LCDMode, tt.modeOut)
 			}
 		})
 	}

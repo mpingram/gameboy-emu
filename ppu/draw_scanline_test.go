@@ -41,7 +41,7 @@ func setupTest() (*PPU, *mmu.MMU) {
 		m.Mem[mmu.AddrTileMap0+(32*i)+i] = 0x10
 	}
 	// The BG tile map for all other spaces should already be set to 0
-	p := New(m.PPUInterface)
+	p := New(m)
 	return p, m
 }
 

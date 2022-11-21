@@ -5,6 +5,13 @@ import (
 	"io"
 )
 
+type MemoryReadWriter interface {
+	Rb(uint16) byte
+	Wb(uint16, byte)
+	Rw(uint16) uint16
+	Ww(uint16, uint16)
+}
+
 const (
 	AddrCartRomBank00         = 0x0000
 	AddrCartRomSwitchableBank = 0x4000
@@ -41,12 +48,10 @@ const (
 )
 
 type MMU struct {
-	Mem          []byte
-	CPUInterface *cpuMemoryInterface
-	PPUInterface *ppuMemoryInterface
-	gameRom      []byte
-	bootRom      []byte
-	mapBootRom   bool
+	Mem        []byte
+	gameRom    []byte
+	bootRom    []byte
+	mapBootRom bool
 }
 
 type MMUOptions struct {
@@ -56,8 +61,6 @@ type MMUOptions struct {
 
 func New(opt MMUOptions) *MMU {
 	m := &MMU{}
-	m.CPUInterface = &cpuMemoryInterface{mmu: m}
-	m.PPUInterface = &ppuMemoryInterface{mmu: m}
 
 	m.Mem = make([]byte, 0x10000)
 	if opt.BootRom != nil {
@@ -94,7 +97,7 @@ func (m *MMU) Dump(out io.Writer) {
 	}
 }
 
-func (m *MMU) rb(addr uint16) byte {
+func (m *MMU) Rb(addr uint16) byte {
 	switch {
 	case addr < 0x0100:
 		if m.mapBootRom {
@@ -106,7 +109,7 @@ func (m *MMU) rb(addr uint16) byte {
 	}
 }
 
-func (m *MMU) wb(addr uint16, b byte) {
+func (m *MMU) Wb(addr uint16, b byte) {
 	// TODO Handle memory mapped registers
 	switch addr {
 	case 0xff50: // writing 0x1 to $ff50 unmaps the boot ROM from memory.
@@ -118,13 +121,13 @@ func (m *MMU) wb(addr uint16, b byte) {
 	}
 }
 
-func (m *MMU) rw(addr uint16) uint16 {
+func (m *MMU) Rw(addr uint16) uint16 {
 	hi := m.Mem[addr]
 	lo := m.Mem[addr+1]
 	return uint16(hi)<<8 | uint16(lo)
 }
 
-func (m *MMU) ww(addr uint16, w uint16) {
+func (m *MMU) Ww(addr uint16, w uint16) {
 	hi := byte(w >> 8)
 	lo := byte(w)
 	m.Mem[addr] = hi
