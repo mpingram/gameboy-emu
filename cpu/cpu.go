@@ -93,8 +93,6 @@ func (c *CPU) Run() {
 		// Decode and execute one instruction
 		instr := Decode(c.PC, c.mem)
 
-		// DEBUG: print instruction mnemonic
-		fmt.Printf("($%04x)\t%s\n", c.PC, instr.String())
 		c.Execute(instr)
 
 		orig_pc := c.PC

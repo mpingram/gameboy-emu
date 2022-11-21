@@ -24,13 +24,13 @@ type MemoryWriter interface {
 type PPU struct {
 	mem      MemoryReadWriter
 	cycles   int
-	screen   []Pixel
-	VideoOut chan []Pixel
+	screen   []byte
+	VideoOut chan []byte
 }
 
 func New(mem MemoryReadWriter) *PPU {
-	videoOut := make(chan []Pixel, 1) // videoOut channel is buffered by one screen
-	ppu := &PPU{mem, 0, []Pixel{}, videoOut}
+	videoOut := make(chan []byte, 1) // videoOut channel is buffered by one screen
+	ppu := &PPU{mem, 0, []byte{}, videoOut}
 	ppu.setMode(OAMSearch)
 	return ppu
 }
@@ -208,7 +208,6 @@ func (p *PPU) getBackgroundTileRow(x, y byte) []pixelData {
 		px := pixelData{paletteIndex, bg}
 		pixels = append(pixels, px)
 	}
-	// panic(fmt.Sprintf("%v", pixels))
 	return pixels
 }
 
@@ -238,33 +237,11 @@ func (p *PPU) getTileRowData(tileAddr uint16, row byte) []byte {
 	return tileData
 }
 
-// palette represents the color palette used to color a tile.
-// Each pixel of a tile has color, numbered from 1-4. The palette is
-// a map from a color number to a RGB color, allowing each tile to be
-// colored with up to four different colors. If a tile is a sprite, color 4
-// is always colored as transparent.
-// In the original Gameboy, there are only 4 colors total to choose from.
-type palette map[byte]Pixel
-
-func (p *PPU) getBGPalette() palette {
-	var bgpAddr uint16 = 0xFF47
-	b := p.mem.Rb(bgpAddr)
-	pal := map[byte]Pixel{
-		3: Pixel(b & 0b1100_0000 >> 6),
-		2: Pixel(b & 0b0011_0000 >> 4),
-		1: Pixel(b & 0b0000_1100 >> 2),
-		0: Pixel(b & 0b0000_0011),
-	}
-	return palette(pal)
-}
-
-type Pixel byte
-
 const (
-	White     Pixel = 0
-	LightGray       = 1
-	DarkGray        = 2
-	Black           = 3
+	White     byte = 0
+	LightGray      = 1
+	DarkGray       = 2
+	Black          = 3
 )
 
 type pixelData struct {
@@ -310,7 +287,6 @@ func (p *PPU) getLY() byte {
 func (p *PPU) setLY(ly byte) {
 	var lyAddr uint16 = 0xff44
 	p.mem.Wb(lyAddr, ly)
-	// fmt.Printf("LY: (%08x) %d\n", p.mem.Rb(lyAddr), p.mem.Rb(lyAddr))
 }
 
 // getLYCompare gets the value of a register that is used to trigger
@@ -342,8 +318,9 @@ func (p *PPU) getWindowY() byte {
 // Screen is a byte array representing the colorized pixels
 // of a gameboy screen. Its format is
 //
-// 	1 pixel
-//  |-----|
+//		1 pixel
+//	 |-----|
+//
 // [R, G, B, R, G, B, R, G, B]
 // Where R,G,B are one byte representing the red, green, blue
 // component of each pixel.

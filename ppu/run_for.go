@@ -35,7 +35,7 @@ func (p *PPU) step() {
 				case p.VideoOut <- p.screen:
 				default:
 				}
-				p.screen = make([]Pixel, 0)
+				p.screen = make([]byte, 0)
 				p.setLY(p.getLY() + 1)
 			} else {
 				panic(fmt.Sprintf("LY is %v (>143), but mode is %v (should be VBlank)", p.getLY(), lcdstat.Mode))
